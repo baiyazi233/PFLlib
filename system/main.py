@@ -65,6 +65,7 @@ from flcore.servers.servercac import FedCAC
 from flcore.servers.serverda import PFL_DA
 from flcore.servers.serverlc import FedLC
 from flcore.servers.serveras import FedAS
+from flcore.servers.servercfl import FedCFL
 
 from flcore.trainmodel.models import *
 
@@ -204,6 +205,12 @@ def run(args):
             args.model.fc = nn.Identity()
             args.model = BaseHeadSplit(args.model, args.head)
             server = FedAvg(args, i)
+
+        elif args.algorithm == "FedCFL":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedCFL(args, i)
 
         elif args.algorithm == "Local":
             server = Local(args, i)
@@ -458,7 +465,7 @@ if __name__ == "__main__":
     parser.add_argument('-bt', "--beta", type=float, default=0.0)
     parser.add_argument('-lam', "--lamda", type=float, default=1.0,
                         help="Regularization weight")
-    parser.add_argument('-mu', "--mu", type=float, default=0.0)
+    # parser.add_argument('-mu', "--mu", type=float, default=0.0)
     parser.add_argument('-K', "--K", type=int, default=5,
                         help="Number of personalized training steps for pFedMe")
     parser.add_argument('-lrp', "--p_learning_rate", type=float, default=0.01,
@@ -505,6 +512,10 @@ if __name__ == "__main__":
     parser.add_argument('-mo', "--momentum", type=float, default=0.1)
     parser.add_argument('-klw', "--kl_weight", type=float, default=0.0)
 
+    # FedCFL
+    parser.add_argument('-nclt', "--num_clusters", type=int, default=10)
+    parser.add_argument('-mu', "--mu", type=float, default=1.0)
+    parser.add_argument('-lambda_', "--lambda_", type=float, default=2.0)
 
     args = parser.parse_args()
 
