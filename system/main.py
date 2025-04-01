@@ -1,20 +1,3 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 #!/usr/bin/env python
 import copy
 import torch
@@ -48,7 +31,7 @@ from flcore.servers.serverbabu import FedBABU
 from flcore.servers.serverapple import APPLE
 from flcore.servers.servergen import FedGen
 from flcore.servers.serverscaffold import SCAFFOLD
-from flcore.servers.serverdistill import FedDistill
+from flcore.servers.serverfd import FD
 from flcore.servers.serverala import FedALA
 from flcore.servers.serverpac import FedPAC
 from flcore.servers.serverlg import LG_FedAvg
@@ -299,8 +282,8 @@ def run(args):
         elif args.algorithm == "SCAFFOLD":
             server = SCAFFOLD(args, i)
 
-        elif args.algorithm == "FedDistill":
-            server = FedDistill(args, i)
+        elif args.algorithm == "FD":
+            server = FD(args, i)
 
         elif args.algorithm == "FedALA":
             server = FedALA(args, i)
@@ -447,7 +430,7 @@ if __name__ == "__main__":
     parser.add_argument('-nnc', "--num_new_clients", type=int, default=0)
     parser.add_argument('-ften', "--fine_tuning_epoch_new", type=int, default=0)
     parser.add_argument('-fd', "--feature_dim", type=int, default=512)
-    parser.add_argument('-vs', "--vocab_size", type=int, default=32000, 
+    parser.add_argument('-vs', "--vocab_size", type=int, default=80, 
                         help="Set this for text tasks. 80 for Shakespeare. 32000 for AG_News and SogouNews.")
     parser.add_argument('-ml', "--max_len", type=int, default=200)
     # practical

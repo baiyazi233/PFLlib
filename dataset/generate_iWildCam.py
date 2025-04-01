@@ -1,20 +1,3 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 import numpy as np
 import os
 import random
@@ -78,17 +61,21 @@ def generate_dataset(dir_path):
     X = []
     y = []
 
-    classes = set()
+    class_map = {}
+    class_cnt = 0
+
     for i in range(num_clients):
         if len(y_o[i]) > least_samples and len(set(y_o[i])) > least_class_per_client:
             X.append(X_o[i])
-            y.append(y_o[i])
-            classes.update(y_o[i])
+            for yy in y_o[i]:
+                if yy not in class_map:
+                    class_map[yy] = class_cnt
+                    class_cnt += 1
+            y.append([class_map[yy] for yy in y_o[i]])
 
     num_clients = len(y)
-    num_classes = len(classes)
     print(f'Number of clients: {num_clients}')
-    print(f'Number of classes: {num_classes}')
+    print(f'Number of classes: {class_cnt}')
 
     for i in range(num_clients):
         statistic.append([])
@@ -103,7 +90,7 @@ def generate_dataset(dir_path):
 
     train_data, test_data = split_data(X, y)
     save_file(config_path, train_path, test_path, train_data, test_data, 
-        num_clients, num_classes, statistic, None, None, None)
+        num_clients, class_cnt, statistic, None, None, None)
 
 
 if __name__ == "__main__":

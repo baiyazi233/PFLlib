@@ -1,34 +1,17 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 import time
-from flcore.clients.clientdistill import clientDistill
+from flcore.clients.clientfd import clientFD
 from flcore.servers.serverbase import Server
 from threading import Thread
 from collections import defaultdict
 
 
-class FedDistill(Server):
+class FD(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
 
         # select slow clients
         self.set_slow_clients()
-        self.set_clients(clientDistill)
+        self.set_clients(clientFD)
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
@@ -58,7 +41,7 @@ class FedDistill(Server):
             # [t.join() for t in threads]
 
             self.receive_logits()
-            self.global_logits = logit_aggregation(self.uploaded_logits)
+            self.global_logits = proto_aggregation(self.uploaded_logits)
             self.send_logits()
 
             self.Budget.append(time.time() - s_t)
@@ -97,20 +80,19 @@ class FedDistill(Server):
             self.uploaded_logits.append(client.logits)
 
 
-# https://github.com/yuetan031/fedlogit/blob/main/lib/utils.py#L221
-def logit_aggregation(local_logits_list):
-    agg_logits_label = defaultdict(list)
-    for local_logits in local_logits_list:
-        for label in local_logits.keys():
-            agg_logits_label[label].append(local_logits[label])
+def proto_aggregation(local_protos_list):
+    agg_protos = defaultdict(list)
+    for local_protos in local_protos_list:
+        for label in local_protos.keys():
+            agg_protos[label].append(local_protos[label])
 
-    for [label, logit_list] in agg_logits_label.items():
-        if len(logit_list) > 1:
-            logit = 0 * logit_list[0].data
-            for i in logit_list:
-                logit += i.data
-            agg_logits_label[label] = logit / len(logit_list)
+    for [label, proto_list] in agg_protos.items():
+        if len(proto_list) > 1:
+            proto = 0 * proto_list[0].data
+            for i in proto_list:
+                proto += i.data
+            agg_protos[label] = proto / len(proto_list)
         else:
-            agg_logits_label[label] = logit_list[0].data
+            agg_protos[label] = proto_list[0].data
 
-    return agg_logits_label
+    return agg_protos

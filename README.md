@@ -1,24 +1,20 @@
-# PFLlib: Personalized Federated Learning Library
+# <img src="docs/imgs/logo-green.png" alt="icon" height="24" style="vertical-align:sub;"/> PFLlib: Personalized Federated Learning Library and Benchmark
 
-🎯***We create a beginner-friendly algorithm library and benchmark platform for those new to federated learning. Join us in expanding the FL community by contributing your algorithms, datasets, and metrics to this project.***
+🎯*We built a beginner-friendly federated learning (FL) library and benchmark: **master FL in 2 hours—run it on your PC!** [Contribute](#easy-to-extend) your algorithms, datasets, and metrics to grow the FL community.*
 
-👏 **PFLlib is using Apache License.**
-
-👏 **PFLlib now has its official website and domain name: https://www.pfllib.com/!!!**
-
-👏 **The **[Leaderboard](http://www.pfllib.com/benchmark.html)** is live! Our methods—[FedCP](https://github.com/TsingZ0/FedCP), [GPFL](https://github.com/TsingZ0/GPFL), and [FedDBE](https://github.com/TsingZ0/DBE)—lead the way. Notably, **FedDBE** stands out with robust performance across varying data heterogeneity levels.**
+👏 The **[official website](http://www.pfllib.com)** and **[leaderboard](http://www.pfllib.com/benchmark.html)** is live! Our methods—[FedCP](https://github.com/TsingZ0/FedCP), [GPFL](https://github.com/TsingZ0/GPFL), and [FedDBE](https://github.com/TsingZ0/DBE)—lead the way. Notably, **FedDBE** stands out with robust performance across varying data heterogeneity levels.
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.04992-b31b1b.svg)](https://arxiv.org/abs/2312.04992) ![Apache License 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 
 
-![](./structure.png)
+![](docs/imgs/structure.png)
 Figure 1: An Example for FedAvg. You can create a scenario using `generate_DATA.py` and run an algorithm using `main.py`, `clientNAME.py`, and `serverNAME.py`. For a new algorithm, you only need to add new features in `clientNAME.py` and `serverNAME.py`.
 
 🎯**If you find our repository useful, please cite the corresponding paper:**
 
 ```
 @article{zhang2023pfllib,
-  title={PFLlib: Personalized Federated Learning Algorithm Library},
+  title={PFLlib: A Beginner-Friendly and Comprehensive Personalized Federated Learning Library and Benchmark},
   author={Zhang, Jianqing and Liu, Yang and Hua, Yang and Wang, Hao and Song, Tao and Xue, Zhengui and Ma, Ruhui and Cao, Jian},
   journal={arXiv preprint arXiv:2312.04992},
   year={2023}
@@ -30,7 +26,9 @@ Figure 1: An Example for FedAvg. You can create a scenario using `generate_DATA.
 
 - Some **experimental results** are avalible in its [paper](https://arxiv.org/abs/2312.04992) and [here](#experimental-results). 
 
-- Refer to [this guide](#how-to-start-simulating-examples-for-fedavg) to learn how to use it.
+- Refer to [examples](#how-to-start-simulating-examples-for-fedavg) to learn how to use it.
+
+- Refer to [easy to extend](#easy-to-extend) to learn how to add new data or algorithms.
 
 - The benchmark platform can simulate scenarios using the 4-layer CNN on Cifar100 for **500 clients** on **one NVIDIA GeForce RTX 3090 GPU card** with only **5.08GB GPU memory** cost.
 
@@ -114,7 +112,7 @@ The origin of the **data heterogeneity** phenomenon is the characteristics of us
 
   ***Knowledge-distillation-based pFL (more in [HtFLlib](https://github.com/TsingZ0/HtFLlib))***
 
-- **FedDistill (FD)** — [Communication-Efficient On-Device Machine Learning: Federated Distillation and Augmentation under Non-IID Private Data](https://arxiv.org/pdf/1811.11479.pdf) *2018*
+- **FD (FedDistill)** — [Communication-Efficient On-Device Machine Learning: Federated Distillation and Augmentation under Non-IID Private Data](https://arxiv.org/pdf/1811.11479.pdf) *2018*
 - **FML** — [Federated Mutual Learning](https://arxiv.org/abs/2006.16765) *2020*
 - **FedKD** — [Communication-efficient federated learning via knowledge distillation](https://www.nature.com/articles/s41467-022-29763-x) *Nature Communications 2022*
 - **FedProto** — [FedProto: Federated Prototype Learning across Heterogeneous Clients](https://ojs.aaai.org/index.php/AAAI/article/view/20819) *AAAI 2022*
@@ -180,11 +178,13 @@ For more details on datasets and FL algorithms in **IoT**, please refer to [FL-I
 ### Examples for **MNIST** in the ***label skew*** scenario
 ```bash
 cd ./dataset
-# python generate_MNIST.py iid - - # for iid and unbalanced scenario
-# python generate_MNIST.py iid balance - # for iid and balanced scenario
-# python generate_MNIST.py noniid - pat # for pathological noniid and unbalanced scenario
+# Please modify train_ratio and alpha in dataset\utils\dataset_utils.py
+
+python generate_MNIST.py iid - - # for iid and unbalanced scenario
+python generate_MNIST.py iid balance - # for iid and balanced scenario
+python generate_MNIST.py noniid - pat # for pathological noniid and unbalanced scenario
 python generate_MNIST.py noniid - dir # for practical noniid and unbalanced scenario
-# python generate_MNIST.py noniid - exdir # for Extended Dirichlet strategy 
+python generate_MNIST.py noniid - exdir # for Extended Dirichlet strategy 
 ```
 
 The command line output of running `python generate_MNIST.py noniid - dir`
@@ -322,6 +322,7 @@ conda env create -f env_cuda_latest.yaml  # Downgrade torch via pip if needed to
     ```bash
     cd ./system
     python main.py -data MNIST -m CNN -algo FedAvg -gr 2000 -did 0 # using the MNIST dataset, the FedAvg algorithm, and the 4-layer CNN model
+    python main.py -data MNIST -m CNN -algo FedAvg -gr 2000 -did 0,1,2,3 # running on multiple GPUs
     ```
 
 **Note**: It is preferable to tune algorithm-specific hyper-parameters before using any algorithm on a new machine. 

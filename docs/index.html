@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PFLlib</title>
+    <link rel="icon" href="imgs/logo-green.png" type="image/x-icon">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -19,7 +20,7 @@
             align-items: center;
             background-color: transparent;
             color: white;
-            padding: 1rem 2rem;
+            padding: 1rem 0rem;
             position: fixed;
             width: 100%;
             z-index: 1000;
@@ -84,6 +85,12 @@
             margin-bottom: 1rem;
             z-index: 1;
         }
+        .hero h2 {
+            color: #6DA945;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            z-index: 1;
+        }
         .hero p {
             color: #6DA945;
             font-size: 1.5rem;
@@ -143,12 +150,27 @@
             text-decoration: none;
             color: #6DA945;
         }
+
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            position: absolute;
+            right: 1rem;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 20px;
+            height: 3px;
+            background: white;
+            margin: 5px 0;
+            transition: 0.3s;
+        }
+
         @media (max-width: 768px) {
-            .hero {
-                height: auto;
-                padding: 2rem 1rem;
-                margin-top: 6rem; /* Adjusted margin for mobile view */
-            }
             .hero h1 {
                 font-size: 2rem;
             }
@@ -159,22 +181,27 @@
                 flex-direction: column;
                 gap: 2rem;
             }
+
             .navbar-container {
-                flex-direction: column;
-                align-items: flex-start;
+                flex-direction: row;
+                flex-wrap: wrap;
             }
+            
+            .hamburger {
+                display: block;
+            }
+
             .navbar nav {
+                display: none;
                 flex-direction: column;
-                gap: 0.5rem;
-                margin-top: 1rem;
+                width: 100%;
+                background: #333333;
+                padding: 1rem;
+                margin-top: 2rem;
             }
-            .feature-item {
-                flex: 1 1 calc(50% - 0.5rem); /* Two items per row on smaller screens */
-            }
-        }
-        @media (max-width: 480px) {
-            .feature-item {
-                flex: 1 1 100%; /* One item per row on very small screens */
+
+            .navbar nav.active {
+                display: flex;
             }
         }
     </style>
@@ -182,7 +209,12 @@
 <body>
     <div class="navbar">
         <div class="navbar-container">
-            <h1><a href="index.html" id="PFLlib">PFLlib</a></h1>
+            <h1><img src="imgs/logo-green.png" alt="icon" height="36" style="vertical-align: sub; margin-left: 10pt;"/><a href="index.html" id="PFLlib">PFLlib</a></h1>
+            <button class="hamburger" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
             <nav>
                 <a href="index.html">Home</a>
                 <a href="docs.html">Documentation</a>
@@ -194,8 +226,8 @@
     </div>
     <div class="hero">
         <div>
-            <h1>PFLlib is all you need</h1>
-            <p>A <strong>beginner-friendly</strong> and comprehensive personalized federated learning <strong>library</strong> and <strong>benchmark platform</strong>. <br /> <strong>38</strong> traditional FL (tFL) or personalized FL (pFL) algorithms,  <strong>3</strong> scenarios, and <strong>24</strong> datasets.</p>
+            <h1>PFLlib Is All You Need</h1>
+            <p>A <strong>beginner-friendly</strong> and comprehensive personalized federated learning <strong>library</strong> and <strong>benchmark</strong>. <br /> <strong>38</strong> traditional FL (tFL) or personalized FL (pFL) algorithms,  <strong>3</strong> scenarios, and <strong>24</strong> datasets.</p>
             <button onclick="window.location.href='docs.html'">Get Started</button>
         </div>
     </div>
@@ -217,7 +249,7 @@
         </div>
     </div>
     <footer>
-        <p>&copy; 2024 PFLlib. All rights reserved.</p>
+        <p>&copy; 2025 PFLlib. All rights reserved.</p>
     </footer>
     <script>
         window.addEventListener('scroll', function() {
@@ -241,6 +273,18 @@
             }
         }
         fetchGitHubStars();
+
+        document.querySelector('.hamburger').addEventListener('click', function() {
+            this.classList.toggle('active');
+            document.querySelector('.navbar nav').classList.toggle('active');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.navbar-container')) {
+                document.querySelector('.navbar nav').classList.remove('active');
+                document.querySelector('.hamburger').classList.remove('active');
+            }
+        });
     </script>
 </body>
 </html>

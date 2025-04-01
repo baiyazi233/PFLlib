@@ -1,20 +1,3 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 import numpy as np
 import os
 import sys
@@ -89,24 +72,17 @@ def generate_dataset(dir_path, num_clients, niid, balance, partition):
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     trainset = ImageFolder_custom(root=dir_path+'rawdata/tiny-imagenet-200/train/', transform=transform)
-    testset = ImageFolder_custom(root=dir_path+'rawdata/tiny-imagenet-200/val/', transform=transform)
     trainloader = torch.utils.data.DataLoader(
         trainset, batch_size=len(trainset), shuffle=False)
-    testloader = torch.utils.data.DataLoader(
-        testset, batch_size=len(testset), shuffle=False)
 
     for _, train_data in enumerate(trainloader, 0):
         trainset.data, trainset.targets = train_data
-    for _, test_data in enumerate(testloader, 0):
-        testset.data, testset.targets = test_data
 
     dataset_image = []
     dataset_label = []
 
     dataset_image.extend(trainset.data.cpu().detach().numpy())
-    dataset_image.extend(testset.data.cpu().detach().numpy())
     dataset_label.extend(trainset.targets.cpu().detach().numpy())
-    dataset_label.extend(testset.targets.cpu().detach().numpy())
     dataset_image = np.array(dataset_image)
     dataset_label = np.array(dataset_label)
 

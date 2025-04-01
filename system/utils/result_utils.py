@@ -1,20 +1,3 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 import h5py
 import numpy as np
 import os
@@ -23,12 +6,12 @@ import os
 def average_data(algorithm="", dataset="", goal="", times=10):
     test_acc = get_all_results_for_one_algo(algorithm, dataset, goal, times)
 
-    max_accurancy = []
+    max_accuracy = []
     for i in range(times):
-        max_accurancy.append(test_acc[i].max())
+        max_accuracy.append(test_acc[i].max())
 
-    print("std for best accurancy:", np.std(max_accurancy))
-    print("mean for best accurancy:", np.mean(max_accurancy))
+    print("std for best accuracy:", np.std(max_accuracy))
+    print("mean for best accuracy:", np.mean(max_accuracy))
 
 
 def get_all_results_for_one_algo(algorithm="", dataset="", goal="", times=10):

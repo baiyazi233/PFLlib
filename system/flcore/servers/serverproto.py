@@ -1,20 +1,3 @@
-# PFLlib: Personalized Federated Learning Algorithm Library
-# Copyright (C) 2021  Jianqing Zhang
-
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
 import time
 import numpy as np
 from flcore.clients.clientproto import clientProto
@@ -116,25 +99,24 @@ class FedProto(Server):
             loss.append(train_loss)
 
         print("Averaged Train Loss: {:.4f}".format(train_loss))
-        print("Averaged Test Accurancy: {:.4f}".format(test_acc))
+        print("Averaged Test Accuracy: {:.4f}".format(test_acc))
         # self.print_(test_acc, train_acc, train_loss)
-        print("Std Test Accurancy: {:.4f}".format(np.std(accs)))
+        print("Std Test Accuracy: {:.4f}".format(np.std(accs)))
             
 
-# https://github.com/yuetan031/fedproto/blob/main/lib/utils.py#L221
 def proto_aggregation(local_protos_list):
-    agg_protos_label = defaultdict(list)
+    agg_protos = defaultdict(list)
     for local_protos in local_protos_list:
         for label in local_protos.keys():
-            agg_protos_label[label].append(local_protos[label])
+            agg_protos[label].append(local_protos[label])
 
-    for [label, proto_list] in agg_protos_label.items():
+    for [label, proto_list] in agg_protos.items():
         if len(proto_list) > 1:
             proto = 0 * proto_list[0].data
             for i in proto_list:
                 proto += i.data
-            agg_protos_label[label] = proto / len(proto_list)
+            agg_protos[label] = proto / len(proto_list)
         else:
-            agg_protos_label[label] = proto_list[0].data
+            agg_protos[label] = proto_list[0].data
 
-    return agg_protos_label
+    return agg_protos
