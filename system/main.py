@@ -417,7 +417,7 @@ if __name__ == "__main__":
     parser.add_argument('-ncl', "--num_classes", type=int, default=10)
     parser.add_argument('-m', "--model", type=str, default="CNN")
     parser.add_argument('-lbs', "--batch_size", type=int, default=10)
-    parser.add_argument('-lr', "--local_learning_rate", type=float, default=0.005,
+    parser.add_argument('-lr', "--local_learning_rate", type=float, default=0.01,
                         help="Local learning rate")
     parser.add_argument('-ld', "--learning_rate_decay", type=bool, default=False)
     parser.add_argument('-ldg', "--learning_rate_decay_gamma", type=float, default=0.99)

@@ -95,7 +95,7 @@ class FedCFL(Server):
 
         if self.num_new_clients > 0:
             self.eval_new_clients = True
-            self.set_new_clients(clientAVG)
+            self.set_new_clients(clientCFL)
             print(f"\n-------------Fine tuning round-------------")
             print("\nEvaluate new clients")
             self.evaluate()
@@ -121,7 +121,9 @@ class FedCFL(Server):
             # 对模型进行前向传播以应用dropout
             with torch.no_grad():
                 # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
-                dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
+                # dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
+                # CIFAR10的输入维度是3x32x32
+                dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
                 _ = cluster_model(dummy_input)
             cluster_model.eval()  # 将模型设置回评估模式
             cluster_models.append(cluster_model)
@@ -142,7 +144,8 @@ class FedCFL(Server):
     # 随机采样Sd个局部模型的参数，将其展平拼接，得到Wd，维度为|Sd|×dim(ω)
     def generate_Wd(self):
         Wd = []
-        sampled_models = random.sample(self.cluster_models, int(self.num_clients/2))  # 将浮点数转换为整数
+        sample_size = int(self.num_clients / 2)
+        sampled_models = random.choices(self.cluster_models, k=sample_size)  # 允许重复采样
         for model in sampled_models:
             flattened_params = parameters_to_vector(model.parameters())
             Wd.append(flattened_params)
