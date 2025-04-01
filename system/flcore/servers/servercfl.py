@@ -136,7 +136,11 @@ class FedCFL(Server):
           start_time = time.time()
           # 根据 R 矩阵确定客户端所属的聚类
           cluster_id = np.argmax(self.R[client.id])
+          # 设置聚类模型
           client.set_cluster_model(self.cluster_models[cluster_id])
+          # 设置聚类模型参数
+          client.set_parameters(self.cluster_models[cluster_id])
+          # 设置全局模型
           client.set_global_model(self.global_model)
           client.send_time_cost['num_rounds'] += 1
           client.send_time_cost['total_cost'] += 2 * (time.time() - start_time)
@@ -205,11 +209,13 @@ class FedCFL(Server):
             return None
         # 使用簇中的第一个模型作为基础模型
         avg_model = copy.deepcopy(cluster_models[0])
-        for param_idx, param in enumerate(avg_model.parameters()):
-            # 收集所有模型中对应参数
-            param_list = []
-            for model in cluster_models:
-                param_list.append(list(model.parameters())[param_idx])
-            # 计算平均值
-            param.data = torch.stack(param_list).mean(dim=0)
+    # 对每一层参数计算平均值
+        for averaged_param, *other_params in zip(
+            avg_model.parameters(), 
+            *[model.parameters() for model in cluster_models]
+        ):
+            # 将当前层的所有参数堆叠起来
+            params_stack = torch.stack([param.data for param in [averaged_param] + list(other_params)])
+            # 计算平均值并更新到基础模型
+            averaged_param.data.copy_(params_stack.mean(dim=0))
         return avg_model
