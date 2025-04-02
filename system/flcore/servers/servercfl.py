@@ -26,6 +26,7 @@ import copy
 import torch
 import random
 import numpy as np
+import torch.nn as nn
 
 class FedCFL(Server):
     def __init__(self, args, times):
@@ -118,12 +119,18 @@ class FedCFL(Server):
             cluster_model = copy.deepcopy(self.global_model)
             # 将模型设置为训练模式以启用dropout
             cluster_model.train()
+            # 将所有BatchNorm层设置为eval模式
+            for module in cluster_model.modules():
+                if isinstance(module, nn.BatchNorm1d):
+                    module.eval()
             # 对模型进行前向传播以应用dropout
             with torch.no_grad():
                 # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
                 # dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
                 # CIFAR10的输入维度是3x32x32
-                dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
+                # dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
+                # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
+                dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
                 _ = cluster_model(dummy_input)
             cluster_model.eval()  # 将模型设置回评估模式
             cluster_models.append(cluster_model)

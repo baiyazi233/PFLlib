@@ -125,6 +125,10 @@ def run(args):
                 args.model = DNN(3*32*32, 100, num_classes=args.num_classes).to(args.device)
             else:
                 args.model = DNN(60, 20, num_classes=args.num_classes).to(args.device)
+
+        elif model_str == "LeNetCifar":
+            # CIFAR-10的输入是3x32x32，经过两次卷积和池化后，特征维度为50x8x8=3200
+            args.model = LeNetCifar(feature_dim=1250, bottleneck_dim=256, num_classes=args.num_classes).to(args.device)
         
         elif model_str == "ResNet18":
             args.model = torchvision.models.resnet18(pretrained=False, num_classes=args.num_classes).to(args.device)

@@ -379,6 +379,38 @@ class LeNet(nn.Module):
         x = self.fc(x)
         x = F.log_softmax(x, dim=1)
         return x
+    
+class LeNetCifar(nn.Module):
+    def __init__(self, feature_dim=50*4*4, bottleneck_dim=256, num_classes=10, iswn=None):
+        super(LeNetCifar, self).__init__()
+
+        self.conv_params = nn.Sequential(
+            nn.Conv2d(3, 20, kernel_size=5),
+            nn.MaxPool2d(2),
+            nn.ReLU(),
+            nn.Conv2d(20, 50, kernel_size=5),
+            nn.Dropout2d(p=0.5),
+            nn.MaxPool2d(2),
+            nn.ReLU(),
+        )
+        self.bn = nn.BatchNorm1d(bottleneck_dim, affine=True)
+        self.dropout = nn.Dropout(p=0.5)
+        self.bottleneck = nn.Linear(feature_dim, bottleneck_dim)
+        self.bottleneck.apply(init_weights)
+        self.fc = nn.Linear(bottleneck_dim, num_classes)
+        if iswn == "wn":
+            self.fc = nn.utils.weight_norm(self.fc, name="weight")
+        self.fc.apply(init_weights)
+
+    def forward(self, x):
+        x = self.conv_params(x)
+        x = x.view(x.size(0), -1)
+        x = self.bottleneck(x)
+        x = self.bn(x)
+        x = self.dropout(x)
+        x = self.fc(x)
+        x = F.log_softmax(x, dim=1)
+        return x
 
 # ====================================================================================================================
 

@@ -45,12 +45,12 @@ echo "================"
 # # 数据生成（如果数据集需要）
 # if [[ "$DATASET" == "MNIST" ]]; then
 #     echo "生成 $DATA_TYPE MNIST 数据集..."
-#     python dataset/generate_MNIST.py $DATA_TYPE - dir || {
+#     python dataset/generate_MNIST.py noniid - dir || {
 #         echo "MNIST 数据生成失败!"; exit 1
 #     }
 # elif [[ "$DATASET" == "CIFAR10" ]]; then
 #     echo "生成 $DATA_TYPE CIFAR10 数据集..."
-#     python dataset/generate_CIFAR10.py $DATA_TYPE - dir || {
+#     python generate_Cifar10.py noniid - dir || {
 #         echo "CIFAR10 数据生成失败!"; exit 1
 #     }
 # # 可以添加更多数据集
@@ -70,5 +70,6 @@ python ./system/main.py \
 }
 
 echo "训练完成!"
-
 python main.py -data Cifar10 -m CNN -algo FedAvg -gr 100 -did 0 -nc 100
+python main.py -data Cifar10 -m LeNetCifar -algo FedAvg -gr 200 -did 0 -nc 50
+ResNet18
