@@ -28,10 +28,12 @@ import random
 import numpy as np
 import torch.nn as nn
 
-class FedCFL(Server):
+class FedCFLDropout(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
         self.num_clusters = args.num_clusters
+        self.total_rounds = args.global_rounds
+        self.final_dropout = 0.5
         self.R = self.generate_R_matrix()
         self.cluster_models = self.generate_cluster_models()
         # 随机采样Sd个局部模型的参数，将其展平拼接，得到Wd，维度为|Sd|×dim(ω)
@@ -51,12 +53,14 @@ class FedCFL(Server):
 
     def train(self):
         for i in range(self.global_rounds+1):
+            self.current_round = i  # 记录当前轮数
             s_t = time.time()
             self.selected_clients = self.select_clients()
             self.send_cluster_and_global_models()
 
             if i%self.eval_gap == 0:
                 print(f"\n-------------Round number: {i}-------------")
+                print(f"Current dropout rate: {self.get_dropout_rate(i):.4f}")
                 print("\nEvaluate global model")
                 self.evaluate()
 
@@ -210,13 +214,13 @@ class FedCFL(Server):
             if avg_model is not None:  # 只有当簇不为空时才更新
                 self.cluster_models[k] = avg_model
 
-    # 计算cluster_models列表中模型参数的平均值
+    # 计算cluster_models列表中模型参数的平均值并应用dropout
     def average_cluster_models(self, cluster_models):
         if not cluster_models:  # 如果簇为空，返回None
             return None
         # 使用簇中的第一个模型作为基础模型
         avg_model = copy.deepcopy(cluster_models[0])
-    # 对每一层参数计算平均值
+        # 对每一层参数计算平均值
         for averaged_param, *other_params in zip(
             avg_model.parameters(), 
             *[model.parameters() for model in cluster_models]
@@ -225,4 +229,33 @@ class FedCFL(Server):
             params_stack = torch.stack([param.data for param in [averaged_param] + list(other_params)])
             # 计算平均值并更新到基础模型
             averaged_param.data.copy_(params_stack.mean(dim=0))
+        
+        # 对聚合后的模型应用dropout
+        dropout_rate = self.get_dropout_rate(self.current_round)
+        avg_model.train()  # 设置为训练模式以启用dropout
+        # 设置所有dropout层的概率
+        for module in avg_model.modules():
+            if isinstance(module, nn.Dropout):
+                module.p = dropout_rate
+            elif isinstance(module, nn.Dropout2d):
+                module.p = dropout_rate
+        # 将所有BatchNorm层设置为eval模式
+        for module in avg_model.modules():
+            if isinstance(module, nn.BatchNorm1d) or isinstance(module, nn.BatchNorm2d):
+                module.eval()
+        # 对模型进行前向传播以应用dropout
+        with torch.no_grad():
+            # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
+            dummy_input = torch.randn(1, 1, 28, 28).to(avg_model.parameters().__next__().device)
+            # dummy_input = torch.randn(2, 3, 32, 32).to(avg_model.parameters().__next__().device)
+            _ = avg_model(dummy_input)
+        avg_model.eval()  # 将模型设置回评估模式
+        
         return avg_model
+
+    def get_dropout_rate(self, round_number):
+        # 根据公式计算当前轮次的dropout率
+        t = round_number + 1  # 避免第0轮
+        T = self.total_rounds
+        pt = self.final_dropout * ((t/T) ** 3)
+        return pt

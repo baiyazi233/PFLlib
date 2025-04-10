@@ -66,6 +66,7 @@ from flcore.servers.serverda import PFL_DA
 from flcore.servers.serverlc import FedLC
 from flcore.servers.serveras import FedAS
 from flcore.servers.servercfl import FedCFL
+from flcore.servers.servercfldropout import FedCFLDropout
 
 from flcore.trainmodel.models import *
 
@@ -219,6 +220,12 @@ def run(args):
             args.model.fc = nn.Identity()
             args.model = BaseHeadSplit(args.model, args.head)
             server = FedCFL(args, i)
+
+        elif args.algorithm == "FedCFLDropout":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedCFLDropout(args, i)
 
         elif args.algorithm == "Local":
             server = Local(args, i)
