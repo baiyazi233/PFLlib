@@ -27,7 +27,7 @@ from utils.dataset_utils import check, separate_data, split_data, save_file
 
 random.seed(1)
 np.random.seed(1)
-num_clients = 100
+num_clients = 50
 dir_path = "MNIST/"
 
 
@@ -86,7 +86,7 @@ def generate_dataset(dir_path, num_clients, niid, balance, partition):
     #     dataset.append(dataset_image[idx])
 
     X, y, statistic = separate_data((dataset_image, dataset_label), num_clients, num_classes, 
-                                    niid, balance, partition, class_per_client=2)
+                                    niid, balance, partition, class_per_client=4)
     train_data, test_data = split_data(X, y)
     save_file(config_path, train_path, test_path, train_data, test_data, num_clients, num_classes, 
         statistic, niid, balance, partition)

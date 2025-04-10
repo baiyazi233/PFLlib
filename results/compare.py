@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 加载第一个文件的数据
-with h5py.File('Cifar10_FedAvg_test_LeNet_200r_50d_0.005lr.h5', 'r') as f1:
+with h5py.File('MNIST_FedAvg_test_LeNet_200r_50d.h5', 'r') as f1:
     test_acc1 = f1['rs_test_acc'][:]
     test_auc1 = f1['rs_test_auc'][:]
     train_loss1 = f1['rs_train_loss'][:]
 
 # 加载第二个文件的数据
-with h5py.File('Cifar10_FedCFL_test_LeNet_200r_50d_0.005lr.h5', 'r') as f2:
+with h5py.File('MNIST_FedCFL_test_LeNet_200r_50d.h5', 'r') as f2:
     test_acc2 = f2['rs_test_acc'][:]
     test_auc2 = f2['rs_test_auc'][:]
     train_loss2 = f2['rs_train_loss'][:]

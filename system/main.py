@@ -129,6 +129,10 @@ def run(args):
         elif model_str == "LeNetCifar":
             # CIFAR-10的输入是3x32x32，经过两次卷积和池化后，特征维度为50x8x8=3200
             args.model = LeNetCifar(feature_dim=1250, bottleneck_dim=256, num_classes=args.num_classes).to(args.device)
+
+        elif model_str == "LeNet":
+            # MNIST的输入是1x28x28，经过两次卷积和池化后，特征维度为50x4x4=800
+            args.model = LeNet(feature_dim=800, bottleneck_dim=256, num_classes=args.num_classes).to(args.device)
         
         elif model_str == "ResNet18":
             args.model = torchvision.models.resnet18(pretrained=False, num_classes=args.num_classes).to(args.device)

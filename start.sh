@@ -70,6 +70,6 @@ python ./system/main.py \
 }
 
 echo "训练完成!"
-python main.py -data Cifar10 -m CNN -algo FedAvg -gr 100 -did 0 -nc 100
+python main.py -data Cifar10 -m CNN -algo FedCFL -gr 500 -did 0 -nc 50
 python main.py -data Cifar10 -m LeNetCifar -algo FedAvg -gr 200 -did 0 -nc 50
 ResNet18
