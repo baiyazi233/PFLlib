@@ -33,7 +33,9 @@ class FedCFL(Server):
         super().__init__(args, times)
         self.num_clusters = args.num_clusters
         self.R = self.generate_R_matrix()
-        self.cluster_models = self.generate_cluster_models()
+        self.final_dropout = 0.5  # 最终的dropout率
+        self.total_rounds = args.global_rounds  # 总轮数
+        self.cluster_models = self.generate_cluster_models(round_number=0)
         # 随机采样Sd个局部模型的参数，将其展平拼接，得到Wd，维度为|Sd|×dim(ω)
         self.Wd = self.generate_Wd()
         # 使用PCA对Wd进行降维
@@ -48,59 +50,13 @@ class FedCFL(Server):
         # self.load_model()
         self.Budget = []
 
-
-    def train(self):
-        for i in range(self.global_rounds+1):
-            s_t = time.time()
-            self.selected_clients = self.select_clients()
-            self.send_cluster_and_global_models()
-
-            if i%self.eval_gap == 0:
-                print(f"\n-------------Round number: {i}-------------")
-                print("\nEvaluate global model")
-                self.evaluate()
-
-            for client in self.selected_clients:
-                client.train()
-
-            # threads = [Thread(target=client.train)
-            #            for client in self.selected_clients]
-            # [t.start() for t in threads]
-            # [t.join() for t in threads]
-
-            self.receive_models()
-            if self.dlg_eval and i%self.dlg_gap == 0:
-                self.call_dlg(i)
-            # 更新分配矩阵R
-            self.update_R()
-            # 更新聚合模型
-            self.update_cluster_models()
-            # 更新全局模型
-            self.aggregate_parameters()
-
-            self.Budget.append(time.time() - s_t)
-            print('-'*25, 'time cost', '-'*25, self.Budget[-1])
-
-            if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
-                break
-
-        print("\nBest accuracy.")
-        # self.print_(max(self.rs_test_acc), max(
-        #     self.rs_train_acc), min(self.rs_train_loss))
-        print(max(self.rs_test_acc))
-        print("\nAverage time cost per round.")
-        print(sum(self.Budget[1:])/len(self.Budget[1:]))
-
-        self.save_results()
-        self.save_global_model()
-
-        if self.num_new_clients > 0:
-            self.eval_new_clients = True
-            self.set_new_clients(clientCFL)
-            print(f"\n-------------Fine tuning round-------------")
-            print("\nEvaluate new clients")
-            self.evaluate()
-
+    def get_dropout_rate(self, round_number):
+        # 根据公式计算当前轮次的dropout率
+        t = round_number + 1  # 避免第0轮
+        T = self.total_rounds
+        pt = self.final_dropout * ((t/T) ** 3)
+        return pt
+    
     # 生成 R 矩阵
     def generate_R_matrix(self):
         # 将所有客户端随机分配到 K 个聚类中
@@ -112,25 +68,30 @@ class FedCFL(Server):
         return R
     
     # 生成聚类模型
-    def generate_cluster_models(self):
+    def generate_cluster_models(self, round_number):
         # 对全局模型进行 K 次随机 Dropout 操作，生成 K 个不同的局部模型
         cluster_models = []
+        dropout_rate = self.get_dropout_rate(round_number)
         for i in range(self.num_clusters):
             cluster_model = copy.deepcopy(self.global_model)
             # 将模型设置为训练模式以启用dropout
             cluster_model.train()
+            # 设置所有dropout层的概率
+            for module in cluster_model.modules():
+                if isinstance(module, nn.Dropout):
+                    module.p = dropout_rate
+                elif isinstance(module, nn.Dropout2d):
+                    module.p = dropout_rate
             # 将所有BatchNorm层设置为eval模式
             for module in cluster_model.modules():
-                if isinstance(module, nn.BatchNorm1d):
+                if isinstance(module, nn.BatchNorm1d) or isinstance(module, nn.BatchNorm2d):
                     module.eval()
             # 对模型进行前向传播以应用dropout
             with torch.no_grad():
+                # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
+                # dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)
                 # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
                 dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
-                # CIFAR10的输入维度是3x32x32
-                # dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
-                # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
-                # dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
                 _ = cluster_model(dummy_input)
             cluster_model.eval()  # 将模型设置回评估模式
             cluster_models.append(cluster_model)
@@ -226,3 +187,55 @@ class FedCFL(Server):
             # 计算平均值并更新到基础模型
             averaged_param.data.copy_(params_stack.mean(dim=0))
         return avg_model
+
+    def train(self):
+        for i in range(self.global_rounds+1):
+            s_t = time.time()
+            self.selected_clients = self.select_clients()
+            
+            # 使用当前轮数重新生成聚类模型
+            self.cluster_models = self.generate_cluster_models(round_number=i)
+            
+            self.send_cluster_and_global_models()
+
+            if i%self.eval_gap == 0:
+                print(f"\n-------------Round number: {i}-------------")
+                print(f"Current dropout rate: {self.get_dropout_rate(i):.4f}")
+                print("\nEvaluate global model")
+                self.evaluate()
+
+            for client in self.selected_clients:
+                client.train()
+
+            self.receive_models()
+            if self.dlg_eval and i%self.dlg_gap == 0:
+                self.call_dlg(i)
+            # 更新分配矩阵R
+            self.update_R()
+            # 更新聚合模型
+            self.update_cluster_models()
+            # 更新全局模型
+            self.aggregate_parameters()
+
+            self.Budget.append(time.time() - s_t)
+            print('-'*25, 'time cost', '-'*25, self.Budget[-1])
+
+            if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
+                break
+
+        print("\nBest accuracy.")
+        # self.print_(max(self.rs_test_acc), max(
+        #     self.rs_train_acc), min(self.rs_train_loss))
+        print(max(self.rs_test_acc))
+        print("\nAverage time cost per round.")
+        print(sum(self.Budget[1:])/len(self.Budget[1:]))
+
+        self.save_results()
+        self.save_global_model()
+
+        if self.num_new_clients > 0:
+            self.eval_new_clients = True
+            self.set_new_clients(clientCFL)
+            print(f"\n-------------Fine tuning round-------------")
+            print("\nEvaluate new clients")
+            self.evaluate()
