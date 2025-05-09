@@ -92,6 +92,25 @@ class Server(object):
                             send_slow=send_slow)
             self.clients.append(client)
 
+    # 设置ADMM客户端
+    def set_clientsADMM(self, clientObj):
+        # 初始化总样本数
+        total_samples = 0
+        for i, train_slow, send_slow in zip(range(self.num_clients), self.train_slow_clients, self.send_slow_clients):
+            train_data = read_client_data(self.dataset, i, is_train=True)
+            total_samples += len(train_data)
+        for i, train_slow, send_slow in zip(range(self.num_clients), self.train_slow_clients, self.send_slow_clients):
+            train_data = read_client_data(self.dataset, i, is_train=True)
+            test_data = read_client_data(self.dataset, i, is_train=False)
+            client = clientObj(self.args, 
+                            id=i, 
+                            train_samples=len(train_data), 
+                            test_samples=len(test_data), 
+                            train_slow=train_slow, 
+                            send_slow=send_slow,
+                            total_samples=total_samples)
+            self.clients.append(client)
+
     # random select slow clients
     def select_slow_clients(self, slow_rate):
         slow_clients = [False for i in range(self.num_clients)]

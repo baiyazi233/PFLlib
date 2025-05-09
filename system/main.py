@@ -66,8 +66,10 @@ from flcore.servers.serverda import PFL_DA
 from flcore.servers.serverlc import FedLC
 from flcore.servers.serveras import FedAS
 from flcore.servers.servercfl import FedCFL
+from flcore.servers.servercfl0 import ServerCFL
 from flcore.servers.servercfldropout import FedCFLDropout
-
+from flcore.servers.serveradmm import FedADMM
+from flcore.servers.servercflnolight import FedCFLNoLight
 from flcore.trainmodel.models import *
 
 from flcore.trainmodel.bilstm import *
@@ -227,6 +229,24 @@ def run(args):
             args.model = BaseHeadSplit(args.model, args.head)
             server = FedCFLDropout(args, i)
 
+        elif args.algorithm == "FedCFLNoLight":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedCFLNoLight(args, i)
+
+        elif args.algorithm == "FedADMM":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedADMM(args, i)
+
+        elif args.algorithm == "ServerCFL":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = ServerCFL(args, i)
+
         elif args.algorithm == "Local":
             server = Local(args, i)
 
@@ -239,6 +259,7 @@ def run(args):
         elif args.algorithm == "pFedMe":
             server = pFedMe(args, i)
 
+        #要跑1
         elif args.algorithm == "FedProx":
             server = FedProx(args, i)
 
@@ -251,6 +272,7 @@ def run(args):
         elif args.algorithm == "APFL":
             server = APFL(args, i)
 
+        #要跑2
         elif args.algorithm == "FedPer":
             args.head = copy.deepcopy(args.model.fc)
             args.model.fc = nn.Identity()
@@ -260,6 +282,7 @@ def run(args):
         elif args.algorithm == "Ditto":
             server = Ditto(args, i)
 
+        #要跑3
         elif args.algorithm == "FedRep":
             args.head = copy.deepcopy(args.model.fc)
             args.model.fc = nn.Identity()
@@ -272,6 +295,7 @@ def run(args):
             args.model = BaseHeadSplit(args.model, args.head)
             server = FedPHP(args, i)
 
+        #要跑4
         elif args.algorithm == "FedBN":
             server = FedBN(args, i)
 
@@ -531,7 +555,8 @@ if __name__ == "__main__":
     parser.add_argument('-nclt', "--num_clusters", type=int, default=10)
     parser.add_argument('-mu', "--mu", type=float, default=1.0)
     parser.add_argument('-lambda_', "--lambda_", type=float, default=2.0)
-
+    parser.add_argument('-cosine_threshold', "--cosine_threshold", type=float, default=0.8)
+    parser.add_argument('-min_cluster_size', "--min_cluster_size", type=int, default=5)
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device_id

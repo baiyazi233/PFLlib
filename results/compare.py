@@ -3,19 +3,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 加载第一个文件的数据
-with h5py.File('MNIST_FedAvg_test_LeNet_200r_50d_4n.h5', 'r') as f1:
+with h5py.File('MNIST_FedAvg_test_LeNet_200r_50d.h5', 'r') as f1:
     test_acc1 = f1['rs_test_acc'][:]
     test_auc1 = f1['rs_test_auc'][:]
     train_loss1 = f1['rs_train_loss'][:]
 
 # 加载第二个文件的数据
-with h5py.File('MNIST_FedCFL_test_LeNet_200r_50d_4n.h5', 'r') as f2:
+with h5py.File('MNIST_FedCFL_test_LeNet_200r_50d.h5', 'r') as f2:
     test_acc2 = f2['rs_test_acc'][:]
     test_auc2 = f2['rs_test_auc'][:]
     train_loss2 = f2['rs_train_loss'][:]
 
 # 加载第三个文件的数据
-with h5py.File('MNIST_FedCFLDropout_test_LeNet_200r_50d_4n.h5', 'r') as f3:
+with h5py.File('MNIST_FedCFLNoLight_test_LeNet_200r_50d.h5', 'r') as f3:
     test_acc3 = f3['rs_test_acc'][:]
     test_auc3 = f3['rs_test_auc'][:]
     train_loss3 = f3['rs_train_loss'][:]
@@ -29,7 +29,7 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 # Test Accuracy
 ax1.plot(epochs, test_acc1, '-', label='FedAvg', color='#1f77b4')  # 蓝色
 ax1.plot(epochs, test_acc2, '--', label='FedCFL', color='#ff7f0e')  # 橙色
-ax1.plot(epochs, test_acc3, ':', label='FedCFLDropout', color='#d62728')  # 红色
+ax1.plot(epochs, test_acc3, ':', label='FedCFLNoLight', color='#2ca02c')  # 绿色
 ax1.set_ylabel('Test Accuracy')
 ax1.grid(True, linestyle='--', alpha=0.7)
 ax1.legend()
@@ -37,7 +37,7 @@ ax1.legend()
 # Train Loss
 ax2.plot(epochs, train_loss1, '-', label='FedAvg', color='#1f77b4')
 ax2.plot(epochs, train_loss2, '--', label='FedCFL', color='#ff7f0e')
-ax2.plot(epochs, train_loss3, ':', label='FedCFLDropout', color='#d62728')
+ax2.plot(epochs, train_loss3, ':', label='FedCFLNoLight', color='#2ca02c')
 ax2.set_ylabel('Train Loss')
 ax2.set_xlabel('Epochs')
 ax2.grid(True, linestyle='--', alpha=0.7)

@@ -247,6 +247,7 @@ class FedCFLDropout(Server):
         with torch.no_grad():
             # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
             dummy_input = torch.randn(1, 1, 28, 28).to(avg_model.parameters().__next__().device)
+            # CIFAR10的输入维度是3x32x32
             # dummy_input = torch.randn(2, 3, 32, 32).to(avg_model.parameters().__next__().device)
             _ = avg_model(dummy_input)
         avg_model.eval()  # 将模型设置回评估模式
@@ -257,5 +258,5 @@ class FedCFLDropout(Server):
         # 根据公式计算当前轮次的dropout率
         t = round_number + 1  # 避免第0轮
         T = self.total_rounds
-        pt = self.final_dropout * ((t/T) ** 3)
+        pt = self.final_dropout  + self.final_dropout * ((t/T) -1 ) ** 3
         return pt

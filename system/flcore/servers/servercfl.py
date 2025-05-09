@@ -41,6 +41,7 @@ class FedCFL(Server):
         # select slow clients
         self.set_slow_clients()
         self.set_clients(clientCFL)
+        self.similarity_time = 0.0
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
@@ -83,14 +84,14 @@ class FedCFL(Server):
 
             if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
                 break
-
+            print(f"计算相似度时间: {self.similarity_time} 秒")
         print("\nBest accuracy.")
         # self.print_(max(self.rs_test_acc), max(
         #     self.rs_train_acc), min(self.rs_train_loss))
         print(max(self.rs_test_acc))
         print("\nAverage time cost per round.")
         print(sum(self.Budget[1:])/len(self.Budget[1:]))
-
+        print(f"计算相似度总时间: {self.similarity_time} 秒")
         self.save_results()
         self.save_global_model()
 
@@ -100,6 +101,8 @@ class FedCFL(Server):
             print(f"\n-------------Fine tuning round-------------")
             print("\nEvaluate new clients")
             self.evaluate()
+
+
 
     # 生成 R 矩阵
     def generate_R_matrix(self):
@@ -198,7 +201,14 @@ class FedCFL(Server):
         reduced_params1 = torch.matmul(M_tensor, params1)
         reduced_params2 = torch.matmul(M_tensor, params2)
         # 计算余弦相似度
-        return torch.nn.functional.cosine_similarity(reduced_params1.unsqueeze(0), reduced_params2.unsqueeze(0))
+        start_time = time.time()
+        similarity = torch.nn.functional.cosine_similarity(reduced_params1.unsqueeze(0), reduced_params2.unsqueeze(0))
+        end_time = time.time()
+        # 计算运行时间
+        elapsed_time = end_time - start_time
+        self.similarity_time += elapsed_time
+        # print(f"计算相似度时间: {elapsed_time} 秒")
+        return similarity
 
     # 更新聚合模型
     def update_cluster_models(self):

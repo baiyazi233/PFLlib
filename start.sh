@@ -45,7 +45,7 @@ echo "================"
 # # 数据生成（如果数据集需要）
 # if [[ "$DATASET" == "MNIST" ]]; then
 #     echo "生成 $DATA_TYPE MNIST 数据集..."
-#     python dataset/generate_MNIST.py noniid - dir || {
+#     python generate_MNIST.py noniid - dir || {
 #         echo "MNIST 数据生成失败!"; exit 1
 #     }
 # elif [[ "$DATASET" == "CIFAR10" ]]; then
