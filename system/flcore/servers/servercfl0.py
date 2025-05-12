@@ -16,6 +16,7 @@ class ServerCFL(Server):
         self.cluster_labels = None
         self.cosine_threshold = args.cosine_threshold  # 聚类相似度阈值
         self.min_cluster_size = args.min_cluster_size  # 最小聚类大小
+        self.cluster_interval = getattr(args, 'cluster_interval', 1)  # 聚类间隔，默认1
         
         # 选择参与训练的客户端
         self.set_slow_clients()
@@ -81,7 +82,12 @@ class ServerCFL(Server):
         # 向每个客户端发送其所属簇的模型
         for client in self.selected_clients:
             cluster_id = self.cluster_labels[client.id]
-            client.set_parameters(copy.deepcopy(self.cluster_models[cluster_id]))
+            
+            # 如果cluster_id超出了cluster_models的范围，使用全局模型
+            if cluster_id >= len(self.cluster_models):
+                client.set_cluster_model(copy.deepcopy(self.global_model))
+            else:
+                client.set_cluster_model(copy.deepcopy(self.cluster_models[cluster_id]))
 
 
     def receive_client_updates(self):
@@ -101,7 +107,7 @@ class ServerCFL(Server):
         # 基于相似度进行层次聚类
         clustering = AgglomerativeClustering(
             n_clusters=None, 
-            affinity='precomputed', 
+            metric='precomputed', 
             linkage='complete',
             distance_threshold=1.0 - self.cosine_threshold  # 转换为距离度量
         )
@@ -149,6 +155,20 @@ class ServerCFL(Server):
         return dot_product / (np.sqrt(norm1) * np.sqrt(norm2))
 
 
+    def aggregate_cluster_parameters(self, cluster_params):
+        """聚合簇内客户端的模型参数"""
+        for param in cluster_params[0]:
+            param.data = torch.zeros_like(param.data)
+            
+        for params in cluster_params:
+            for param, aggregated_param in zip(params, cluster_params[0]):
+                aggregated_param.data += param.data
+                
+        for param in cluster_params[0]:
+            param.data /= len(cluster_params)
+            
+        return cluster_params[0]
+
     def aggregate_cluster_models(self):
         # 为每个簇聚合模型参数
         cluster_indices = {}
@@ -166,7 +186,7 @@ class ServerCFL(Server):
                                  if client.id in client_ids]
                 
                 # 聚合参数
-                aggregated_params = self.aggregate_parameters(cluster_params)
+                aggregated_params = self.aggregate_cluster_parameters(cluster_params)
                 
                 # 更新簇模型
                 if cluster_id < len(self.cluster_models):
@@ -186,3 +206,22 @@ class ServerCFL(Server):
             # 评估该簇的性能
             acc, loss = self.evaluate(selected=self.clients)
             print(f"Cluster {cluster_id} - Test accuracy: {acc:.4f}, Test loss: {loss:.4f}")
+
+    def check_and_split_clusters(self):
+        """检查并分裂不匹配的簇。"""
+        # 统计每个簇的客户端数量
+        cluster_counts = {}
+        for client in self.selected_clients:
+            cluster_id = self.cluster_labels[client.id]
+            if cluster_id not in cluster_counts:
+                cluster_counts[cluster_id] = 0
+            cluster_counts[cluster_id] += 1
+        
+        # 检查每个簇的大小，如果小于min_cluster_size则分裂
+        for cluster_id, count in cluster_counts.items():
+            if count < self.min_cluster_size:
+                # 将该簇的客户端重新分配到其他簇
+                for client in self.selected_clients:
+                    if self.cluster_labels[client.id] == cluster_id:
+                        # 这里可以随机分配或根据相似度分配到其他簇
+                        self.cluster_labels[client.id] = max(cluster_counts.keys()) + 1

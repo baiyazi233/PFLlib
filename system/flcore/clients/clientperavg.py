@@ -27,8 +27,7 @@ class clientPerAvg(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
 
-        # self.beta = args.beta
-        self.beta = self.learning_rate
+        self.beta = self.learning_rate * 0.5 
 
         self.optimizer = PerAvgOptimizer(self.model.parameters(), lr=self.learning_rate)
         self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(

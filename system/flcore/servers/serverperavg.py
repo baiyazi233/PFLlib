@@ -21,12 +21,16 @@ import numpy as np
 from flcore.clients.clientperavg import clientPerAvg
 from flcore.servers.serverbase import Server
 from threading import Thread
+import torch
 
 
 class PerAvg(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
 
+        # 降低参与训练的客户端比例
+        self.join_ratio = min(0.2, self.join_ratio)  # 限制最大参与比例为20%
+        
         # select slow clients
         self.set_slow_clients()
         self.set_clients(clientPerAvg)
@@ -60,6 +64,9 @@ class PerAvg(Server):
             self.receive_models()
             if self.dlg_eval and i%self.dlg_gap == 0:
                 self.call_dlg(i)
+            
+            # 添加噪声到模型参数
+            self.add_noise_to_parameters()
             self.aggregate_parameters()
 
             self.Budget.append(time.time() - s_t)
@@ -119,3 +126,10 @@ class PerAvg(Server):
         print("Averaged Test Accurancy: {:.4f}".format(test_acc))
         # self.print_(test_acc, train_acc, train_loss)
         print("Std Test Accurancy: {:.4f}".format(np.std(accs)))
+
+    def add_noise_to_parameters(self):
+
+        for param in self.global_model.parameters():
+            if param.requires_grad:
+                noise = torch.randn_like(param) * 0.01  
+                param.data.add_(noise)

@@ -87,9 +87,10 @@ logger.setLevel(logging.ERROR)
 warnings.simplefilter("ignore")
 torch.manual_seed(0)
 
+print('main.py started', flush=True)
 
 def run(args):
-
+    print("run() entered", flush=True)
     time_list = []
     reporter = MemReporter()
     model_str = args.model
@@ -209,6 +210,7 @@ def run(args):
             raise NotImplementedError
 
         print(args.model)
+        print("Model created", flush=True)
 
         # select algorithm
         if args.algorithm == "FedAvg":
@@ -427,8 +429,9 @@ def run(args):
         else:
             raise NotImplementedError
 
+        print("Server created", flush=True)
         server.train()
-
+        print("server.train() finished", flush=True)
         time_list.append(time.time()-start)
 
     print(f"\nAverage time cost: {round(np.average(time_list), 2)}s.")
@@ -440,6 +443,7 @@ def run(args):
     print("All done!")
 
     reporter.report()
+    print("run() finished", flush=True)
 
 
 if __name__ == "__main__":
@@ -555,8 +559,8 @@ if __name__ == "__main__":
     parser.add_argument('-nclt', "--num_clusters", type=int, default=10)
     parser.add_argument('-mu', "--mu", type=float, default=1.0)
     parser.add_argument('-lambda_', "--lambda_", type=float, default=2.0)
-    parser.add_argument('-cosine_threshold', "--cosine_threshold", type=float, default=0.8)
-    parser.add_argument('-min_cluster_size', "--min_cluster_size", type=int, default=5)
+    parser.add_argument('-cosine_threshold', "--cosine_threshold", type=float, default=1.0)
+    parser.add_argument('-min_cluster_size', "--min_cluster_size", type=int, default=10)
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device_id
@@ -578,6 +582,7 @@ if __name__ == "__main__":
     #     on_trace_ready=torch.profiler.tensorboard_trace_handler('./log')
     #     ) as prof:
     # with torch.autograd.profiler.profile(profile_memory=True) as prof:
+    print('main.py running', flush=True)
     run(args)
 
     

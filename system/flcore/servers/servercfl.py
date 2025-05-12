@@ -16,223 +16,217 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
-from flcore.clients.clientcfl import clientCFL
-from flcore.servers.serverbase import Server
-from threading import Thread
-from torch.nn.utils import parameters_to_vector
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-import copy
-import torch
-import random
 import numpy as np
-import torch.nn as nn
+import torch
+from flcore.servers.serverbase import Server
+from sklearn.cluster import AgglomerativeClustering
+from threading import Thread
+from flcore.clients.clientcfl import clientCFL
+import copy
 
 class FedCFL(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
-        self.num_clusters = args.num_clusters
-        self.R = self.generate_R_matrix()
-        self.cluster_models = self.generate_cluster_models()
-        # 随机采样Sd个局部模型的参数，将其展平拼接，得到Wd，维度为|Sd|×dim(ω)
-        self.Wd = self.generate_Wd()
-        # 使用PCA对Wd进行降维
-        self.M = self.generate_M()
-        # select slow clients
+        
+        # 初始化聚类相关参数
+        self.cluster_models = None
+        self.cluster_labels = None
+        self.cosine_threshold = args.cosine_threshold  # 聚类相似度阈值
+        self.min_cluster_size = args.min_cluster_size  # 最小聚类大小
+        self.cluster_interval = getattr(args, 'cluster_interval', 1)  # 聚类间隔，默认1
+        
+        # 选择参与训练的客户端
         self.set_slow_clients()
         self.set_clients(clientCFL)
-        self.similarity_time = 0.0
-
+        
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
-
-        # self.load_model()
+        
         self.Budget = []
+        self.initialize_cluster_models()
 
+    def initialize_cluster_models(self):
+        """初始化聚类模型，初始时将所有客户端视为一个簇"""
+        self.cluster_models = [copy.deepcopy(self.global_model)]
+        self.cluster_labels = [0] * self.num_clients
 
     def train(self):
-        for i in range(self.global_rounds+1):
+        for i in range(self.global_rounds + 1):
             s_t = time.time()
             self.selected_clients = self.select_clients()
-            self.send_cluster_and_global_models()
-
-            if i%self.eval_gap == 0:
+            self.send_cluster_models()
+            
+            if i % self.eval_gap == 0:
                 print(f"\n-------------Round number: {i}-------------")
                 print("\nEvaluate global model")
                 self.evaluate()
-
+            
             for client in self.selected_clients:
                 client.train()
-
-            # threads = [Thread(target=client.train)
-            #            for client in self.selected_clients]
-            # [t.start() for t in threads]
-            # [t.join() for t in threads]
-
-            self.receive_models()
-            if self.dlg_eval and i%self.dlg_gap == 0:
-                self.call_dlg(i)
-            # 更新分配矩阵R
-            self.update_R()
-            # 更新聚合模型
-            self.update_cluster_models()
-            # 更新全局模型
-            self.aggregate_parameters()
-
+            
+            # 接收客户端更新
+            self.receive_client_updates()
+            
+            # 聚类客户端
+            if i % self.cluster_interval == 0:
+                self.cluster_clients()
+            
+            # 聚合每个簇的模型
+            self.aggregate_cluster_models()
+            
             self.Budget.append(time.time() - s_t)
             print('-'*25, 'time cost', '-'*25, self.Budget[-1])
-
+            
             if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
                 break
-            print(f"计算相似度时间: {self.similarity_time} 秒")
+        
         print("\nBest accuracy.")
-        # self.print_(max(self.rs_test_acc), max(
-        #     self.rs_train_acc), min(self.rs_train_loss))
         print(max(self.rs_test_acc))
         print("\nAverage time cost per round.")
         print(sum(self.Budget[1:])/len(self.Budget[1:]))
-        print(f"计算相似度总时间: {self.similarity_time} 秒")
+        
         self.save_results()
-        self.save_global_model()
+        self.save_cluster_models()
 
-        if self.num_new_clients > 0:
-            self.eval_new_clients = True
-            self.set_new_clients(clientCFL)
-            print(f"\n-------------Fine tuning round-------------")
-            print("\nEvaluate new clients")
-            self.evaluate()
+    def send_cluster_models(self):
+        """向每个客户端发送其所属簇的模型"""
+        for client in self.selected_clients:
+            cluster_id = self.cluster_labels[client.id]
+            
+            # 如果cluster_id超出了cluster_models的范围，使用全局模型
+            if cluster_id >= len(self.cluster_models):
+                client.set_cluster_model(copy.deepcopy(self.global_model))
+            else:
+                client.set_cluster_model(copy.deepcopy(self.cluster_models[cluster_id]))
 
+    def receive_client_updates(self):
+        """收集客户端的模型更新和参数"""
+        self.client_updates = []
+        self.client_params = []
+        
+        for client in self.selected_clients:
+            self.client_updates.append(client.get_update_direction())
+            self.client_params.append(client.get_parameters())
 
+    def cluster_clients(self):
+        """基于客户端更新方向进行聚类"""
+        # 计算客户端更新之间的余弦相似度
+        similarities = self.compute_pairwise_similarities()
+        
+        # 基于相似度进行层次聚类
+        clustering = AgglomerativeClustering(
+            n_clusters=None, 
+            metric='precomputed', 
+            linkage='complete',
+            distance_threshold=1.0 - self.cosine_threshold  # 转换为距离度量
+        )
+        
+        # 执行聚类
+        client_indices = [client.id for client in self.selected_clients]
+        labels = clustering.fit_predict(1.0 - similarities)  # 转换为距离矩阵
+        
+        # 更新客户端聚类标签
+        for i, client_id in enumerate(client_indices):
+            self.cluster_labels[client_id] = labels[i]
+        
+        # 检查并分裂不匹配的簇
+        self.check_and_split_clusters()
 
-    # 生成 R 矩阵
-    def generate_R_matrix(self):
-        # 将所有客户端随机分配到 K 个聚类中
-        R = np.zeros((self.num_clients, self.num_clusters), dtype=int)
-        for i in range(self.num_clients):
-            # 随机选择一个聚类
-            k = np.random.randint(0, self.num_clusters)
-            R[i, k] = 1
-        return R
-    
-    # 生成聚类模型
-    def generate_cluster_models(self):
-        # 对全局模型进行 K 次随机 Dropout 操作，生成 K 个不同的局部模型
-        cluster_models = []
-        for i in range(self.num_clusters):
-            cluster_model = copy.deepcopy(self.global_model)
-            # 将模型设置为训练模式以启用dropout
-            cluster_model.train()
-            # 将所有BatchNorm层设置为eval模式
-            for module in cluster_model.modules():
-                if isinstance(module, nn.BatchNorm1d):
-                    module.eval()
-            # 对模型进行前向传播以应用dropout
-            with torch.no_grad():
-                # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
-                dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
-                # CIFAR10的输入维度是3x32x32
-                # dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
-                # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
-                # dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
-                _ = cluster_model(dummy_input)
-            cluster_model.eval()  # 将模型设置回评估模式
-            cluster_models.append(cluster_model)
-        return cluster_models
+    def compute_pairwise_similarities(self):
+        """计算客户端更新之间的余弦相似度矩阵"""
+        n_clients = len(self.client_updates)
+        similarities = np.zeros((n_clients, n_clients))
+        
+        for i in range(n_clients):
+            for j in range(i, n_clients):
+                sim = self.cosine_similarity(self.client_updates[i], self.client_updates[j])
+                similarities[i, j] = sim
+                similarities[j, i] = sim
+        
+        return similarities
 
-    # 发送聚类模型和全局模型
-    def send_cluster_and_global_models(self):
-        assert (len(self.clients) > 0)
-        for client in self.clients:
-          start_time = time.time()
-          # 根据 R 矩阵确定客户端所属的聚类
-          cluster_id = np.argmax(self.R[client.id])
-          # 设置聚类模型
-          client.set_cluster_model(self.cluster_models[cluster_id])
-          # 设置聚类模型参数
-          client.set_parameters(self.cluster_models[cluster_id])
-          # 设置全局模型
-          client.set_global_model(self.global_model)
-          client.send_time_cost['num_rounds'] += 1
-          client.send_time_cost['total_cost'] += 2 * (time.time() - start_time)
+    def cosine_similarity(self, update1, update2):
+        """计算两个模型更新之间的余弦相似度"""
+        dot_product = 0.0
+        norm1 = 0.0
+        norm2 = 0.0
+        
+        for param1, param2 in zip(update1, update2):
+            dot_product += torch.sum(param1 * param2).item()
+            norm1 += torch.sum(param1 ** 2).item()
+            norm2 += torch.sum(param2 ** 2).item()
+        
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        
+        return dot_product / (np.sqrt(norm1) * np.sqrt(norm2))
 
-    # 随机采样Sd个局部模型的参数，将其展平拼接，得到Wd，维度为|Sd|×dim(ω)
-    def generate_Wd(self):
-        Wd = []
-        sample_size = int(self.num_clients / 2)
-        sampled_models = random.choices(self.cluster_models, k=sample_size)  # 允许重复采样
-        for model in sampled_models:
-            flattened_params = parameters_to_vector(model.parameters())
-            Wd.append(flattened_params)
-        Wd = torch.stack(Wd)
-        return Wd
+    def aggregate_cluster_parameters(self, cluster_params):
+        """聚合簇内客户端的模型参数"""
+        for param in cluster_params[0]:
+            param.data = torch.zeros_like(param.data)
+            
+        for params in cluster_params:
+            for param, aggregated_param in zip(params, cluster_params[0]):
+                aggregated_param.data += param.data
+                
+        for param in cluster_params[0]:
+            param.data /= len(cluster_params)
+            
+        return cluster_params[0]
 
-    # 使用PCA对Wd进行降维
-    def generate_M(self):
-        scaler = StandardScaler()
-        Wd_normalized = scaler.fit_transform(self.Wd.detach().cpu().numpy())  # 先分离梯度，再转换为 NumPy 并标准化
-        # 使用PCA对Wd进行降维
-        D = int(self.num_clients/2)  # 将浮点数转换为整数
-        pca = PCA(n_components=D)
-        pca.fit(Wd_normalized)
-        return pca.components_
+    def aggregate_cluster_models(self):
+        """为每个簇聚合模型参数"""
+        cluster_indices = {}
+        for client in self.selected_clients:
+            cluster_id = self.cluster_labels[client.id]
+            if cluster_id not in cluster_indices:
+                cluster_indices[cluster_id] = []
+            cluster_indices[cluster_id].append(client.id)
+        
+        # 为每个簇聚合模型
+        for cluster_id, client_ids in cluster_indices.items():
+            if len(client_ids) >= self.min_cluster_size:
+                # 获取该簇中所有客户端的参数
+                cluster_params = [self.client_params[i] for i, client in enumerate(self.selected_clients) 
+                                 if client.id in client_ids]
+                
+                # 聚合参数
+                aggregated_params = self.aggregate_cluster_parameters(cluster_params)
+                
+                # 更新簇模型
+                if cluster_id < len(self.cluster_models):
+                    self.cluster_models[cluster_id] = aggregated_params
+                else:
+                    self.cluster_models.append(aggregated_params)
 
-    # 更新分配矩阵R
-    def update_R(self):
-        # 计算每个客户端与每个聚类中心的距离
-        distances = []
-        for i in range(self.num_clients):
-            for k in range(self.num_clusters):
-                distances.append(self.compute_similarity(self.clients[i].model, self.cluster_models[k]))
-        distances = torch.tensor(distances).reshape(self.num_clients, self.num_clusters)
-        # 更新分配矩阵R
-        self.R = torch.zeros((self.num_clients, self.num_clusters), dtype=int)
-        for i in range(self.num_clients):
-            self.R[i, torch.argmax(distances[i])] = 1
+    def check_and_split_clusters(self):
+        """检查并分裂不匹配的簇"""
+        # 统计每个簇的客户端数量
+        cluster_counts = {}
+        for client in self.selected_clients:
+            cluster_id = self.cluster_labels[client.id]
+            if cluster_id not in cluster_counts:
+                cluster_counts[cluster_id] = 0
+            cluster_counts[cluster_id] += 1
+        
+        # 检查每个簇的大小，如果小于min_cluster_size则分裂
+        for cluster_id, count in cluster_counts.items():
+            if count < self.min_cluster_size:
+                # 将该簇的客户端重新分配到其他簇
+                for client in self.selected_clients:
+                    if self.cluster_labels[client.id] == cluster_id:
+                        # 这里可以随机分配或根据相似度分配到其他簇
+                        self.cluster_labels[client.id] = max(cluster_counts.keys()) + 1
 
-
-    # 计算模型相似度
-    def compute_similarity(self, model1, model2):
-        # 计算两个模型的参数向量之间的余弦相似度，使用PCA降维后的矩阵M
-        params1 = parameters_to_vector(model1.parameters()).detach()
-        params2 = parameters_to_vector(model2.parameters()).detach()
-        # 将M转换为PyTorch张量
-        M_tensor = torch.from_numpy(self.M).float().to(params1.device)
-        # 计算降维后的参数向量
-        reduced_params1 = torch.matmul(M_tensor, params1)
-        reduced_params2 = torch.matmul(M_tensor, params2)
-        # 计算余弦相似度
-        start_time = time.time()
-        similarity = torch.nn.functional.cosine_similarity(reduced_params1.unsqueeze(0), reduced_params2.unsqueeze(0))
-        end_time = time.time()
-        # 计算运行时间
-        elapsed_time = end_time - start_time
-        self.similarity_time += elapsed_time
-        # print(f"计算相似度时间: {elapsed_time} 秒")
-        return similarity
-
-    # 更新聚合模型
-    def update_cluster_models(self):
-        for k in range(self.num_clusters):
-            # 计算每个聚类中所有客户端的模型参数的平均值
-            cluster_models = [self.clients[i].model for i in range(self.num_clients) if self.R[i, k] == 1]
-            # 计算平均模型
-            avg_model = self.average_cluster_models(cluster_models)
-            if avg_model is not None:  # 只有当簇不为空时才更新
-                self.cluster_models[k] = avg_model
-
-    # 计算cluster_models列表中模型参数的平均值
-    def average_cluster_models(self, cluster_models):
-        if not cluster_models:  # 如果簇为空，返回None
-            return None
-        # 使用簇中的第一个模型作为基础模型
-        avg_model = copy.deepcopy(cluster_models[0])
-    # 对每一层参数计算平均值
-        for averaged_param, *other_params in zip(
-            avg_model.parameters(), 
-            *[model.parameters() for model in cluster_models]
-        ):
-            # 将当前层的所有参数堆叠起来
-            params_stack = torch.stack([param.data for param in [averaged_param] + list(other_params)])
-            # 计算平均值并更新到基础模型
-            averaged_param.data.copy_(params_stack.mean(dim=0))
-        return avg_model
+    def evaluate_clusters(self):
+        """评估每个簇的模型性能"""
+        for cluster_id, model in enumerate(self.cluster_models):
+            # 设置客户端使用该簇的模型进行评估
+            for client in self.clients:
+                if self.cluster_labels[client.id] == cluster_id:
+                    client.set_parameters(copy.deepcopy(model))
+            
+            # 评估该簇的性能
+            acc, loss = self.evaluate(selected=self.clients)
+            print(f"Cluster {cluster_id} - Test accuracy: {acc:.4f}, Test loss: {loss:.4f}")

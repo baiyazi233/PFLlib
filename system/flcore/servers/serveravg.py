@@ -37,48 +37,55 @@ class FedAvg(Server):
 
 
     def train(self):
+        print("train starting", flush=True)
         for i in range(self.global_rounds+1):
+            print(f"train loop i={i}", flush=True)
             s_t = time.time()
             self.selected_clients = self.select_clients()
+            # print("selected_clients done", flush=True)
             self.send_models()
+            print("send_models done", flush=True)
 
             if i%self.eval_gap == 0:
-                print(f"\n-------------Round number: {i}-------------")
-                print("\nEvaluate global model")
+                print(f"\n-------------Round number: {i}-------------", flush=True)
+                print("\nEvaluate global model", flush=True)
                 self.evaluate()
+                print("evaluate done", flush=True)
 
             for client in self.selected_clients:
+                # print(f"client {client.id} train start", flush=True)
                 client.train()
-
-            # threads = [Thread(target=client.train)
-            #            for client in self.selected_clients]
-            # [t.start() for t in threads]
-            # [t.join() for t in threads]
+                # print(f"client {client.id} train end", flush=True)
 
             self.receive_models()
+            print("receive_models done", flush=True)
             if self.dlg_eval and i%self.dlg_gap == 0:
                 self.call_dlg(i)
+                print("call_dlg done", flush=True)
             self.aggregate_parameters()
+            print("aggregate_parameters done", flush=True)
 
             self.Budget.append(time.time() - s_t)
-            print('-'*25, 'time cost', '-'*25, self.Budget[-1])
+            print('-'*25, 'time cost', '-'*25, self.Budget[-1], flush=True)
 
             if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
+                print("auto_break triggered", flush=True)
                 break
 
-        print("\nBest accuracy.")
-        # self.print_(max(self.rs_test_acc), max(
-        #     self.rs_train_acc), min(self.rs_train_loss))
-        print(max(self.rs_test_acc))
-        print("\nAverage time cost per round.")
-        print(sum(self.Budget[1:])/len(self.Budget[1:]))
+        print("\nBest accuracy.", flush=True)
+        print(max(self.rs_test_acc), flush=True)
+        print("\nAverage time cost per round.", flush=True)
+        print(sum(self.Budget[1:])/len(self.Budget[1:]), flush=True)
 
         self.save_results()
+        print("save_results done", flush=True)
         self.save_global_model()
+        print("save_global_model done", flush=True)
 
         if self.num_new_clients > 0:
             self.eval_new_clients = True
             self.set_new_clients(clientAVG)
-            print(f"\n-------------Fine tuning round-------------")
-            print("\nEvaluate new clients")
+            print(f"\n-------------Fine tuning round-------------", flush=True)
+            print("\nEvaluate new clients", flush=True)
             self.evaluate()
+            print("evaluate new clients done", flush=True)

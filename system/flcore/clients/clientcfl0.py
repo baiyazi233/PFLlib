@@ -34,7 +34,10 @@ class clientCFL0(Client):
     def train(self):
         trainloader = self.load_train_data()
         # cluster_model和global_model不需要训练，保持eval模式
-        self.cluster_model.eval()
+        if self.cluster_model is not None:
+            self.cluster_model.eval()
+        else:
+            raise ValueError("cluster_model is None, please set it before training.")
         
         start_time = time.time()
         for epoch in range(self.local_epochs):
@@ -70,3 +73,15 @@ class clientCFL0(Client):
         self.cluster_model = cluster_model
         # 设置聚类模型参数
         self.set_parameters(self.cluster_model)
+
+    def get_update_direction(self):
+        """返回当前模型参数与聚类模型参数的差值，用于server端聚合。"""
+        # 如果有聚类模型，则返回参数差值，否则返回当前模型参数
+        if self.cluster_model is not None:
+            return [p.data.cpu() - p0.data.cpu() for p, p0 in zip(self.model.parameters(), self.cluster_model.parameters())]
+        else:
+            return [p.data.cpu() for p in self.model.parameters()]
+
+    def get_parameters(self):
+        """返回当前模型的参数列表。"""
+        return [p.data.cpu() for p in self.model.parameters()]
