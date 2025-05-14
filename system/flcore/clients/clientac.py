@@ -51,18 +51,19 @@ class clientAC(Client):
                     time.sleep(0.1 * np.abs(np.random.rand()))
                 output = self.model(x)
                 loss = self.loss(output, y)
-                # 计算与聚类模型的参数差异（正则项）
-                cluster_loss = 0
-                for p1, p2 in zip(self.model.parameters(), self.cluster_model.parameters()):
-                    cluster_loss += 0.5 * self.mu * torch.sum((p1 - p2) ** 2)
+                # # 计算与聚类模型的参数差异（正则项）
+                # cluster_loss = 0
+                # for p1, p2 in zip(self.model.parameters(), self.cluster_model.parameters()):
+                #     cluster_loss += 0.5 * self.mu * torch.sum((p1 - p2) ** 2)
                 
-                # 计算与全局模型的参数差异（正则项）
-                global_loss = 0
-                for p1, p2 in zip(self.model.parameters(), self.global_model.parameters()):
-                    global_loss += 0.5 * self.lambda_ * torch.sum((p1 - p2) ** 2)
+                # # 计算与全局模型的参数差异（正则项）
+                # global_loss = 0
+                # for p1, p2 in zip(self.model.parameters(), self.global_model.parameters()):
+                #     global_loss += 0.5 * self.lambda_ * torch.sum((p1 - p2) ** 2)
                 
                 # 总损失 = 分类损失 + 聚类正则项 + 全局正则项
-                total_loss = loss + cluster_loss + global_loss
+                # total_loss = loss + cluster_loss + global_loss
+                total_loss = loss
                 self.optimizer.zero_grad()
                 total_loss.backward()
                 self.optimizer.step()

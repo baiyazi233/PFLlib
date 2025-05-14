@@ -66,7 +66,7 @@ from flcore.servers.serverda import PFL_DA
 from flcore.servers.serverlc import FedLC
 from flcore.servers.serveras import FedAS
 from flcore.servers.servercfl import FedCFL
-from flcore.servers.servercfl0 import ServerCFL
+from flcore.servers.servercfl0 import FedCFL0
 from flcore.servers.servercfldropout import FedCFLDropout
 from flcore.servers.serveradmm import FedADMM
 from flcore.servers.servercflnolight import FedCFLNoLight

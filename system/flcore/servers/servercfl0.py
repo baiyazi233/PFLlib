@@ -1,13 +1,30 @@
+# PFLlib: Personalized Federated Learning Algorithm Library
+# Copyright (C) 2021  Jianqing Zhang
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
 import time
 import numpy as np
 import torch
 from flcore.servers.serverbase import Server
 from sklearn.cluster import AgglomerativeClustering
 from threading import Thread
-from flcore.clients.clientcfl0 import clientCFL0
+from flcore.clients.clientcfl import clientCFL
 import copy
 
-class ServerCFL(Server):
+class FedCFL0(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
         
@@ -20,7 +37,7 @@ class ServerCFL(Server):
         
         # 选择参与训练的客户端
         self.set_slow_clients()
-        self.set_clients(clientCFL0)
+        self.set_clients(clientCFL)
         
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
         print("Finished creating server and clients.")
@@ -28,12 +45,10 @@ class ServerCFL(Server):
         self.Budget = []
         self.initialize_cluster_models()
 
-
     def initialize_cluster_models(self):
-        # 初始时将所有客户端视为一个簇
+        """初始化聚类模型，初始时将所有客户端视为一个簇"""
         self.cluster_models = [copy.deepcopy(self.global_model)]
         self.cluster_labels = [0] * self.num_clients
-
 
     def train(self):
         for i in range(self.global_rounds + 1):
@@ -48,10 +63,6 @@ class ServerCFL(Server):
             
             for client in self.selected_clients:
                 client.train()
-            # # 并行训练客户端
-            # threads = [Thread(target=client.train) for client in self.selected_clients]
-            # [t.start() for t in threads]
-            # [t.join() for t in threads]
             
             # 接收客户端更新
             self.receive_client_updates()
@@ -77,9 +88,8 @@ class ServerCFL(Server):
         self.save_results()
         self.save_cluster_models()
 
-
     def send_cluster_models(self):
-        # 向每个客户端发送其所属簇的模型
+        """向每个客户端发送其所属簇的模型"""
         for client in self.selected_clients:
             cluster_id = self.cluster_labels[client.id]
             
@@ -89,9 +99,8 @@ class ServerCFL(Server):
             else:
                 client.set_cluster_model(copy.deepcopy(self.cluster_models[cluster_id]))
 
-
     def receive_client_updates(self):
-        # 收集客户端的模型更新和参数
+        """收集客户端的模型更新和参数"""
         self.client_updates = []
         self.client_params = []
         
@@ -99,8 +108,8 @@ class ServerCFL(Server):
             self.client_updates.append(client.get_update_direction())
             self.client_params.append(client.get_parameters())
 
-
     def cluster_clients(self):
+        """基于客户端更新方向进行聚类"""
         # 计算客户端更新之间的余弦相似度
         similarities = self.compute_pairwise_similarities()
         
@@ -123,9 +132,8 @@ class ServerCFL(Server):
         # 检查并分裂不匹配的簇
         self.check_and_split_clusters()
 
-
     def compute_pairwise_similarities(self):
-        # 计算客户端更新之间的余弦相似度矩阵
+        """计算客户端更新之间的余弦相似度矩阵"""
         n_clients = len(self.client_updates)
         similarities = np.zeros((n_clients, n_clients))
         
@@ -137,9 +145,8 @@ class ServerCFL(Server):
         
         return similarities
 
-
     def cosine_similarity(self, update1, update2):
-        # 计算两个模型更新之间的余弦相似度
+        """计算两个模型更新之间的余弦相似度"""
         dot_product = 0.0
         norm1 = 0.0
         norm2 = 0.0
@@ -153,7 +160,6 @@ class ServerCFL(Server):
             return 0.0
         
         return dot_product / (np.sqrt(norm1) * np.sqrt(norm2))
-
 
     def aggregate_cluster_parameters(self, cluster_params):
         """聚合簇内客户端的模型参数"""
@@ -170,7 +176,7 @@ class ServerCFL(Server):
         return cluster_params[0]
 
     def aggregate_cluster_models(self):
-        # 为每个簇聚合模型参数
+        """为每个簇聚合模型参数"""
         cluster_indices = {}
         for client in self.selected_clients:
             cluster_id = self.cluster_labels[client.id]
@@ -194,21 +200,8 @@ class ServerCFL(Server):
                 else:
                     self.cluster_models.append(aggregated_params)
 
-
-    def evaluate_clusters(self):
-        # 评估每个簇的模型性能
-        for cluster_id, model in enumerate(self.cluster_models):
-            # 设置客户端使用该簇的模型进行评估
-            for client in self.clients:
-                if self.cluster_labels[client.id] == cluster_id:
-                    client.set_parameters(copy.deepcopy(model))
-            
-            # 评估该簇的性能
-            acc, loss = self.evaluate(selected=self.clients)
-            print(f"Cluster {cluster_id} - Test accuracy: {acc:.4f}, Test loss: {loss:.4f}")
-
     def check_and_split_clusters(self):
-        """检查并分裂不匹配的簇。"""
+        """检查并分裂不匹配的簇"""
         # 统计每个簇的客户端数量
         cluster_counts = {}
         for client in self.selected_clients:
@@ -225,3 +218,15 @@ class ServerCFL(Server):
                     if self.cluster_labels[client.id] == cluster_id:
                         # 这里可以随机分配或根据相似度分配到其他簇
                         self.cluster_labels[client.id] = max(cluster_counts.keys()) + 1
+
+    def evaluate_clusters(self):
+        """评估每个簇的模型性能"""
+        for cluster_id, model in enumerate(self.cluster_models):
+            # 设置客户端使用该簇的模型进行评估
+            for client in self.clients:
+                if self.cluster_labels[client.id] == cluster_id:
+                    client.set_parameters(copy.deepcopy(model))
+            
+            # 评估该簇的性能
+            acc, loss = self.evaluate(selected=self.clients)
+            print(f"Cluster {cluster_id} - Test accuracy: {acc:.4f}, Test loss: {loss:.4f}")

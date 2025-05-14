@@ -30,8 +30,8 @@ class FedProx(Server):
         self.set_clients(clientProx)
 
 
-        print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
-        print("Finished creating server and clients.")
+        print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}", flush=True)
+        print("Finished creating server and clients.", flush=True)
 
         # self.load_model()
         self.Budget = []
@@ -44,8 +44,8 @@ class FedProx(Server):
             self.send_models()
 
             if i%self.eval_gap == 0:
-                print(f"\n-------------Round number: {i}-------------")
-                print("\nEvaluate global model")
+                print(f"\n-------------Round number: {i}-------------", flush=True)
+                print("\nEvaluate global model", flush=True)
                 self.evaluate()
 
             for client in self.selected_clients:
@@ -62,17 +62,17 @@ class FedProx(Server):
             self.aggregate_parameters()
 
             self.Budget.append(time.time() - s_t)
-            print('-'*25, 'time cost', '-'*25, self.Budget[-1])
+            print('-'*25, 'time cost', '-'*25, self.Budget[-1], flush=True)
 
             if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
                 break
 
-        print("\nBest accuracy.")
+        print("\nBest accuracy.", flush=True)
         # self.print_(max(self.rs_test_acc), max(
         #     self.rs_train_acc), min(self.rs_train_loss))
-        print(max(self.rs_test_acc))
-        print("\nAverage time cost per round.")
-        print(sum(self.Budget[1:])/len(self.Budget[1:]))
+        print(max(self.rs_test_acc), flush=True)
+        print("\nAverage time cost per round.", flush=True)
+        print(sum(self.Budget[1:])/len(self.Budget[1:]), flush=True)
 
         self.save_results()
         self.save_global_model()
@@ -80,6 +80,6 @@ class FedProx(Server):
         if self.num_new_clients > 0:
             self.eval_new_clients = True
             self.set_new_clients(clientProx)
-            print(f"\n-------------Fine tuning round-------------")
-            print("\nEvaluate new clients")
+            print(f"\n-------------Fine tuning round-------------", flush=True)
+            print("\nEvaluate new clients", flush=True)
             self.evaluate()

@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
-from flcore.clients.clientac1 import clientAC1
+from flcore.clients.clientcfl import clientCFL
 from flcore.servers.serverbase import Server
 from threading import Thread
 from torch.nn.utils import parameters_to_vector
@@ -42,10 +42,10 @@ class FedADC(Server):
         self.M = self.generate_M()
         # select slow clients
         self.set_slow_clients()
-        self.set_clients(clientAC1)
+        self.set_clients(clientCFL)
 
-        print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
-        print("Finished creating server and clients.")
+        print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}", flush=True)
+        print("Finished creating server and clients.", flush=True)
 
         # self.load_model()
         self.Budget = []
@@ -59,9 +59,9 @@ class FedADC(Server):
             self.send_cluster_and_global_models()
 
             if i%self.eval_gap == 0:
-                print(f"\n-------------Round number: {i}-------------")
-                print(f"Current dropout rate: {self.get_dropout_rate(i):.4f}")
-                print("\nEvaluate global model")
+                print(f"\n-------------Round number: {i}-------------", flush=True)
+                print(f"Current dropout rate: {self.get_dropout_rate(i):.4f}", flush=True)
+                print("\nEvaluate global model", flush=True)
                 self.evaluate()
 
             for client in self.selected_clients:
@@ -83,26 +83,26 @@ class FedADC(Server):
             self.aggregate_parameters()
 
             self.Budget.append(time.time() - s_t)
-            print('-'*25, 'time cost', '-'*25, self.Budget[-1])
+            print('-'*25, 'time cost', '-'*25, self.Budget[-1], flush=True)
 
             if self.auto_break and self.check_done(acc_lss=[self.rs_test_acc], top_cnt=self.top_cnt):
                 break
 
-        print("\nBest accuracy.")
+        print("\nBest accuracy.", flush=True)
         # self.print_(max(self.rs_test_acc), max(
         #     self.rs_train_acc), min(self.rs_train_loss))
-        print(max(self.rs_test_acc))
-        print("\nAverage time cost per round.")
-        print(sum(self.Budget[1:])/len(self.Budget[1:]))
+        print(max(self.rs_test_acc), flush=True)
+        print("\nAverage time cost per round.", flush=True)
+        print(sum(self.Budget[1:])/len(self.Budget[1:]), flush=True)
 
         self.save_results()
         self.save_global_model()
 
         if self.num_new_clients > 0:
             self.eval_new_clients = True
-            self.set_new_clients(clientAC1)
-            print(f"\n-------------Fine tuning round-------------")
-            print("\nEvaluate new clients")
+            self.set_new_clients(clientCFL)
+            print(f"\n-------------Fine tuning round-------------", flush=True)
+            print("\nEvaluate new clients", flush=True)
             self.evaluate()
 
     # 生成 R 矩阵
@@ -134,7 +134,7 @@ class FedADC(Server):
                 # CIFAR10的输入维度是3x32x32
                 # dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
                 # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
-                dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
+                # dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
                 _ = cluster_model(dummy_input)
             cluster_model.eval()  # 将模型设置回评估模式
             cluster_models.append(cluster_model)
@@ -246,9 +246,9 @@ class FedADC(Server):
         # 对模型进行前向传播以应用dropout
         with torch.no_grad():
             # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
-            # dummy_input = torch.randn(1, 1, 28, 28).to(avg_model.parameters().__next__().device)
+            dummy_input = torch.randn(1, 1, 28, 28).to(avg_model.parameters().__next__().device)
             # CIFAR10的输入维度是3x32x32
-            dummy_input = torch.randn(2, 3, 32, 32).to(avg_model.parameters().__next__().device)
+            # dummy_input = torch.randn(2, 3, 32, 32).to(avg_model.parameters().__next__().device)
             _ = avg_model(dummy_input)
         avg_model.eval()  # 将模型设置回评估模式
         

@@ -25,41 +25,22 @@ from flcore.clients.clientbase import Client
 class clientCFL(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
+        # 正则化参数，用于模型的更新
+        self.mu = args.mu
+        self.lambda_ = args.lambda_
+        # 聚类模型
         self.cluster_model = None
-        self.update_direction = None
-
-    def set_cluster_model(self, model):
-        """设置客户端所属簇的模型参数"""
-        if isinstance(model, list):
-            self.cluster_model = model
-        else:
-            self.cluster_model = [param.data.clone() for param in model.parameters()]
-
-    def get_update_direction(self):
-        """获取模型更新方向（当前模型与簇模型的差异）"""
-        if self.cluster_model is None:
-            return None
-        
-        update_direction = []
-        for param, cluster_param in zip(self.model.parameters(), self.cluster_model):
-            update_direction.append(param.data - cluster_param)
-        return update_direction
-
-    def get_parameters(self):
-        """获取当前模型参数"""
-        return [param.data.clone() for param in self.model.parameters()]
+        # 全局模型
+        self.global_model = None
 
     def train(self):
         trainloader = self.load_train_data()
-        self.model.train()
+        # cluster_model和global_model不需要训练，保持eval模式
+        self.cluster_model.eval()
+        self.global_model.eval()
         
         start_time = time.time()
-
-        max_local_epochs = self.local_epochs
-        if self.train_slow:
-            max_local_epochs = np.random.randint(1, max_local_epochs // 2)
-
-        for epoch in range(max_local_epochs):
+        for epoch in range(self.local_epochs):
             for i, (x, y) in enumerate(trainloader):
                 if type(x) == type([]):
                     x[0] = x[0].to(self.device)
@@ -70,8 +51,20 @@ class clientCFL(Client):
                     time.sleep(0.1 * np.abs(np.random.rand()))
                 output = self.model(x)
                 loss = self.loss(output, y)
+                # 计算与聚类模型的参数差异（正则项）
+                cluster_loss = 0
+                for p1, p2 in zip(self.model.parameters(), self.cluster_model.parameters()):
+                    cluster_loss += 0.5 * self.mu * torch.sum((p1 - p2) ** 2)
+                
+                # 计算与全局模型的参数差异（正则项）
+                global_loss = 0
+                for p1, p2 in zip(self.model.parameters(), self.global_model.parameters()):
+                    global_loss += 0.5 * self.lambda_ * torch.sum((p1 - p2) ** 2)
+                
+                # 总损失 = 分类损失 + 聚类正则项 + 全局正则项
+                total_loss = loss + cluster_loss + global_loss
                 self.optimizer.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 self.optimizer.step()
 
         if self.learning_rate_decay:
@@ -79,3 +72,14 @@ class clientCFL(Client):
 
         self.train_time_cost['num_rounds'] += 1
         self.train_time_cost['total_cost'] += time.time() - start_time
+
+    def set_cluster_model(self, cluster_model):
+        # 设置聚类模型
+        self.cluster_model = cluster_model
+        # 设置聚类模型参数
+        self.set_parameters(self.cluster_model)
+
+    def set_global_model(self, global_model):
+        # 设置全局模型
+        self.global_model = global_model
+        # 全局模型用于本地模型正则项更新，不需要设置参数
