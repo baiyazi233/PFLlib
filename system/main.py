@@ -70,6 +70,9 @@ from flcore.servers.servercfl0 import ServerCFL
 from flcore.servers.servercfldropout import FedCFLDropout
 from flcore.servers.serveradmm import FedADMM
 from flcore.servers.servercflnolight import FedCFLNoLight
+from flcore.servers.serverac import FedAC
+from flcore.servers.serverac1 import FedAC1
+from flcore.servers.serveradc import FedADC
 from flcore.trainmodel.models import *
 
 from flcore.trainmodel.bilstm import *
@@ -224,7 +227,21 @@ def run(args):
             args.model.fc = nn.Identity()
             args.model = BaseHeadSplit(args.model, args.head)
             server = FedCFL(args, i)
-
+        elif args.algorithm == "FedAC":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedAC(args, i)
+        elif args.algorithm == "FedAC1":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedAC1(args, i)
+        elif args.algorithm == "FedADC":
+            args.head = copy.deepcopy(args.model.fc)
+            args.model.fc = nn.Identity()
+            args.model = BaseHeadSplit(args.model, args.head)
+            server = FedADC(args, i)
         elif args.algorithm == "FedCFLDropout":
             args.head = copy.deepcopy(args.model.fc)
             args.model.fc = nn.Identity()

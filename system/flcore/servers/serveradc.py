@@ -28,7 +28,7 @@ import random
 import numpy as np
 import torch.nn as nn
 
-class FedCFLDropout(Server):
+class FedADC(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
         self.num_clusters = args.num_clusters

@@ -3,19 +3,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 加载第一个文件的数据
-with h5py.File('Cifar10_FedAvg_test_LeNet_200r_50d_4n.h5', 'r') as f1:
+with h5py.File('Cifar10_FedAvg_test_LeNet_200r_50d_3n.h5', 'r') as f1:
     test_acc1 = f1['rs_test_acc'][:]
 
 # 加载第二个文件的数据
-with h5py.File('Cifar10_FedCFL_test_LeNet_200r_50d_4n.h5', 'r') as f2:
+with h5py.File('Cifar10_FedAC_test_LeNet_200r_50d_3n.h5', 'r') as f2:
     test_acc2 = f2['rs_test_acc'][:]
 
 # 加载第三个文件的数据
-with h5py.File('Cifar10_FedProx_test_LeNet_200r_50d_4n.h5', 'r') as f3:
+with h5py.File('Cifar10_FedProx_test_LeNet_200r_50d_3n.h5', 'r') as f3:
     test_acc3 = f3['rs_test_acc'][:]
 
 # 加载第四个文件的数据
-with h5py.File('Cifar10_PerAvg_test_LeNet_200r_50d_4n.h5', 'r') as f4:
+with h5py.File('Cifar10_FedCFL_test_LeNet_200r_50d_3n.h5', 'r') as f4:
     test_acc4 = f4['rs_test_acc'][:]
 
 
@@ -37,7 +37,7 @@ plt.xlabel('Epochs')
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.legend()
 
-plt.title('Performance Comparison of Different Federated Learning Methods on CIFAR-10 with n = 4')
+plt.title('Performance Comparison of Different Federated Learning Methods on CIFAR-10 with n = 3')
 plt.tight_layout()
 plt.show()
 

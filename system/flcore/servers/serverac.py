@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
-from flcore.clients.clientcfl import clientCFL
+from flcore.clients.clientac import clientAC
 from flcore.servers.serverbase import Server
 from threading import Thread
 from torch.nn.utils import parameters_to_vector
@@ -28,7 +28,7 @@ import random
 import numpy as np
 import torch.nn as nn
 
-class FedCFL(Server):
+class FedAC(Server):
     def __init__(self, args, times):
         super().__init__(args, times)
         self.num_clusters = args.num_clusters
@@ -40,7 +40,7 @@ class FedCFL(Server):
         self.M = self.generate_M()
         # select slow clients
         self.set_slow_clients()
-        self.set_clients(clientCFL)
+        self.set_clients(clientAC)
         self.similarity_time = 0.0
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}")
@@ -72,6 +72,8 @@ class FedCFL(Server):
             self.receive_models()
             if self.dlg_eval and i%self.dlg_gap == 0:
                 self.call_dlg(i)
+            # 更新降维矩阵M
+            self.update_M()
             # 更新分配矩阵R
             self.update_R()
             # 更新聚合模型
@@ -97,7 +99,7 @@ class FedCFL(Server):
 
         if self.num_new_clients > 0:
             self.eval_new_clients = True
-            self.set_new_clients(clientCFL)
+            self.set_new_clients(clientAC)
             print(f"\n-------------Fine tuning round-------------")
             print("\nEvaluate new clients")
             self.evaluate()
@@ -129,11 +131,11 @@ class FedCFL(Server):
             # 对模型进行前向传播以应用dropout
             with torch.no_grad():
                 # 创建一个随机输入来触发dropout，MNIST的输入维度是1x28x28
-                dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
+                # dummy_input = torch.randn(1, 1, 28, 28).to(cluster_model.parameters().__next__().device)
                 # CIFAR10的输入维度是3x32x32
                 # dummy_input = torch.randn(1, 3, 32, 32).to(cluster_model.parameters().__next__().device)
                 # 创建一个随机输入来触发dropout，CIFAR-10的输入维度是3x32x32
-                # dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
+                dummy_input = torch.randn(2, 3, 32, 32).to(cluster_model.parameters().__next__().device)  # 使用batch_size=2
                 _ = cluster_model(dummy_input)
             cluster_model.eval()  # 将模型设置回评估模式
             cluster_models.append(cluster_model)
@@ -236,3 +238,21 @@ class FedCFL(Server):
             # 计算平均值并更新到基础模型
             averaged_param.data.copy_(params_stack.mean(dim=0))
         return avg_model
+    
+    def update_M(self):
+        Wd = []
+        sample_size = int(self.num_clients / 2)
+        # 随机选择sample_size个客户端的模型
+        sampled_clients = random.choices(self.clients, k=sample_size)  
+        for client in sampled_clients:
+            flattened_params = parameters_to_vector(client.model.parameters())
+            Wd.append(flattened_params)
+        Wd = torch.stack(Wd)
+        # 使用PCA对Wd进行降维
+        scaler = StandardScaler()
+        Wd_normalized = scaler.fit_transform(self.Wd.detach().cpu().numpy())  # 先分离梯度，再转换为 NumPy 并标准化
+        # 使用PCA对Wd进行降维
+        D = int(self.num_clients/2)  # 将浮点数转换为整数
+        pca = PCA(n_components=D)
+        pca.fit(Wd_normalized)
+        self.M = pca.components_
