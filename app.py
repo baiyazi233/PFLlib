@@ -18,6 +18,7 @@ import warnings
 import sys
 import types
 import json
+import time
 
 # 过滤PyTorch警告
 warnings.filterwarnings("ignore", message="`torch.distributed.reduce_op` is deprecated")
@@ -429,10 +430,12 @@ def upload_image():
         
         # 推理
         with torch.no_grad():
+            start_time = time.time()  # 添加时间记录
             output = model(img_tensor)
             probabilities = F.softmax(output, dim=1)[0]
             predicted_class = torch.argmax(output, dim=1).item()
             class_probabilities = {str(i): float(prob) for i, prob in enumerate(probabilities)}
+            inference_time = (time.time() - start_time) * 1000  # 转换为毫秒
         
         # 将图片转换为base64
         buffered = BytesIO()
@@ -449,7 +452,8 @@ def upload_image():
             'predicted_class': predicted_class,
             'probabilities': class_probabilities,
             'image_data': img_str,
-            'original_image_data': original_img_str
+            'original_image_data': original_img_str,
+            'inference_time': inference_time  # 添加推理时间
         })
         
     except Exception as e:

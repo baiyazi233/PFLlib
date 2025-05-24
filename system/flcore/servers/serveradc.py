@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import time
-from flcore.clients.clientcfl import clientCFL
+from flcore.clients.clientac import clientAC
 from flcore.servers.serverbase import Server
 from threading import Thread
 from torch.nn.utils import parameters_to_vector
@@ -42,7 +42,7 @@ class FedADC(Server):
         self.M = self.generate_M()
         # select slow clients
         self.set_slow_clients()
-        self.set_clients(clientCFL)
+        self.set_clients(clientAC)
 
         print(f"\nJoin ratio / total clients: {self.join_ratio} / {self.num_clients}", flush=True)
         print("Finished creating server and clients.", flush=True)
@@ -100,7 +100,7 @@ class FedADC(Server):
 
         if self.num_new_clients > 0:
             self.eval_new_clients = True
-            self.set_new_clients(clientCFL)
+            self.set_new_clients(clientAC)
             print(f"\n-------------Fine tuning round-------------", flush=True)
             print("\nEvaluate new clients", flush=True)
             self.evaluate()
